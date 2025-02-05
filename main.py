@@ -106,29 +106,52 @@ logger = ioh.logger.Analyzer(
 
 )
 
+r"""
+This is a relevant part of the code as this will control how the constraints influence the function evaluation.
+The idea follows up from the constraint definition from IOH. Namely, this framework typifies the constraints in 4 classes:
+    1. 1;NOT-> Type 1 or 'NOT' is that the constraint will not be evaluated.
+    2. 2;HIDDEN-> Type 2 or 'HIDDEN', which means the constraint will be evaluated, but the target will be not penalized if the constraint condition is not fulfilled.
+    3. 3;SOFT-> Type 3 or 'SOFT', which means the constraint will be evaluated, and the evaluation will result in a penalized function evaluation.
+    4. 4;HARD-> Type 3 or 'SOFT', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
+                corresponds to the penalty value.
+
+
+In this topology framework, the problem has a container of 4 constraint functions. The list of these functions is the following:
+1. Dirichlet Boundary Condition-> This function evaluates if there is at least material next to the clamped condition of the structure. If there is no material, then it computes a Minkowski
+                                  distance (or max min norm) in a sense to check the minimum distance of a material element which is closest to the leftwise part of the domain.
+2. Neumann Boundary Condition-> Similar to the first constraint function, ensures there is at least a material element next to the point load application node. And if not, then computes the 
+                                Minkowski distance finding the least distance to the closest material element in the mesh.
+3. Connectivity Condition-> A function, which uses the "Burning Forest Algorithm" and segments different segments or bodies of material. This is an extra penalty for Evolutionary Strategies
+                            such as CMA-ES in order to select designs whose beams are make up just one full body and not different segments.
+4. Volume Constraint-> Computes the fractional volume occupation (max(0,volume of the design/total volume)-volfrac) excess from the constraint. 
+
+To run unbounded and/or search algorithms, we recommend to set the constraints 1 (Dirichlet) and 2 (Neumann) as type 4 such that the original target is not computed in such case. This is because
+the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
+"""
 # Convert the first two constraints to a not
-ioh_prob.convert_defined_constraint_to_type(0,4)
-ioh_prob.convert_defined_constraint_to_type(1,4)
+ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
+ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
 
 # Convert connectivity to a hidden
-ioh_prob.convert_defined_constraint_to_type(2,3)
+ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3)
 
 
+# Set an initial starting point for CMA-ES
 x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
 
-
+# Set the options for cma package `fmin` 
 opts:cma.CMAOptions = {'bounds':[0,1],'tolfun':1e-6,'seed':RANDOM_SEED,'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
 }
 
-
-
+# Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
+# Run CMA-ES
+fmin(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
 
-#run_experiment(problem=ioh_prob,algorithm=es,n_runs=1)
 ioh_prob.reset()
 logger.close()
 
