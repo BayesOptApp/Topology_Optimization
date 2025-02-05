@@ -16,5 +16,9 @@ The working code outputs two different plots, which are the deformed structure w
 ![image](https://github.com/user-attachments/assets/9105270f-19b4-4fd0-9579-9f0ff94f15e3)
 ![image](https://github.com/user-attachments/assets/02c6ea6e-1cc2-4806-b623-f6f76f9fb223)
 
+As of now, to run the code the following packages are needed:
+- ioh (
+
+
 
 
