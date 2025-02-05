@@ -16,6 +16,7 @@ The working code outputs two different plots, which are the deformed structure w
 ![image](https://github.com/user-attachments/assets/9105270f-19b4-4fd0-9579-9f0ff94f15e3)
 ![image](https://github.com/user-attachments/assets/02c6ea6e-1cc2-4806-b623-f6f76f9fb223)
 
+## Required Packages
 As of now, to run the code the following packages are needed:
 - IOH Experimenter (https://github.com/IOHprofiler/IOHexperimenter); Normally installed via `pip install ioh`
 - NumPy; IOH Experimenter requires NumPy to be a version below 2.0. So by just installing IOH, then the required NumPy version is installed.
