@@ -26,7 +26,7 @@ As of now, to run the code the following packages are needed:
 
 ## Team
 * [Elena Raponi](https://www.universiteitleiden.nl/en/staffmembers/elena-raponi#tab-1), *Leiden Institute of Advanced Computer Science*,
-* [Iván Olarte Rodríguez](https://www.universiteitleiden.nl/en/staffmembers/furong-ye#tab-1), *Leiden Institute of Advanced Computer Science*
+* [Iván Olarte Rodríguez](https://www.universiteitleiden.nl/en/staffmembers/ivan-olarte-rodriguez#tab-1), *Leiden Institute of Advanced Computer Science*
 
 
 
