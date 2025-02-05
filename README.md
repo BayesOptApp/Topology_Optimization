@@ -1,7 +1,7 @@
 # Topology_Optimization
 This is a repository for topology optimization.
 
-As of now, the current running code is based on a Concurrent Topology Optimization, wherein just not the topology is optimized, but lamination parameters with Fiber-Steering are optimized given the topology. Currently, the topology is optimized by using Moving Morphable Components (MMC), an idea from Guo et al. [1], to reduce the dimensionality from the SIMP approach from Bendsoe & Sigmund [4]. For more information on the problem formulation and models behind, the following references are recommended:
+As of now, the current running code is based on a Concurrent Topology Optimization, wherein just not the topology is optimized, but lamination parameters with Fiber-Steering are optimized given the topology. Furthermore, the only constraints studied are the ones in which the structure is clamped on the left side and there is a point load to the middle-right. Currently, the topology is optimized by using Moving Morphable Components (MMC), an idea from Guo et al. [1], to reduce the dimensionality from the SIMP approach from Bendsoe & Sigmund [4]. For more information on the problem formulation and models behind, the following references are recommended:
 
 
 [1] X. Guo, W. Zhang, J. Zhang, and J. Yuan, “Explicit structural topology optimization based on moving morphable components (MMC) with curved skeletons,” Computer Methods in Applied Mechanics and Engineering, vol. 310, pp. 711–748, Oct. 2016, doi: 10.1016/j.cma.2016.07.018.
@@ -17,7 +17,7 @@ The working code outputs two different plots, which are the deformed structure w
 ![image](https://github.com/user-attachments/assets/02c6ea6e-1cc2-4806-b623-f6f76f9fb223)
 
 As of now, to run the code the following packages are needed:
-- `ioh`
+- IOH Experimenter (https://github.com/IOHprofiler/IOHexperimenter); Normally installed via `pip install ioh`
 
 
 
