@@ -1,4 +1,5 @@
-# Topology_Optimization
+# Topology Optimization
+## Introduction
 This is a repository for topology optimization.
 
 As of now, the current running code is based on a Concurrent Topology Optimization, wherein just not the topology is optimized, but lamination parameters with Fiber-Steering are optimized given the topology. Furthermore, the only constraints studied are the ones in which the structure is clamped on the left side and there is a point load to the middle-right. Currently, the topology is optimized by using Moving Morphable Components (MMC), an idea from Guo et al. [1], to reduce the dimensionality from the SIMP approach from Bendsoe & Sigmund [4]. For more information on the problem formulation and models behind, the following references are recommended:
@@ -21,7 +22,7 @@ As of now, to run the code the following packages are needed:
 - *IOH Experimenter* (https://github.com/IOHprofiler/IOHexperimenter); Normally installed via `pip install ioh`
 - *NumPy*; IOH Experimenter requires NumPy to be a version below 2.0. So by just installing IOH, then the required NumPy version is installed.
 - *SciPy*; installed via `pip install scipy`. The internal Finite Element Solver uses the linear algebra package as well as sparse package. 
-- *PyVista*; it's for easy visualization purposes. Normally installed via `pip install pyvista`. Take into account that PyVista extends dependencies from Matplotlib, NumPy and VTK. The latter requires that imaging compilers such as Mesa (if you are running Linux) are downloaded.
+- *PyVista*; it's for easy visualization purposes. Normally installed via `pip install pyvista`. Take into account that PyVista extends dependencies from Matplotlib, NumPy and VTK. The latter requires that imaging compilers such as _libmesa_ (if you are running Linux) are downloaded.
 
 
 
