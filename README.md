@@ -18,7 +18,9 @@ The working code outputs two different plots, which are the deformed structure w
 
 As of now, to run the code the following packages are needed:
 - IOH Experimenter (https://github.com/IOHprofiler/IOHexperimenter); Normally installed via `pip install ioh`
-
+- NumPy; IOH Experimenter requires NumPy to be a version below 2.0. So by just installing IOH, then the required NumPy version is installed.
+- SciPy; installed via `pip install scipy`. The internal Finite Element Solver uses the linear algebra package as well as sparse package. 
+- PyVista; it's for easy visualization purposes. Normally installed via `pip install pyvista`. Take into account that PyVista extends dependencies from Matplotlib, NumPy and VTK. The latter requires that imaging compilers such as Mesa (if you are running Linux) are downloaded.
 
 
 
