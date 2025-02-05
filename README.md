@@ -25,7 +25,7 @@ As of now, to run the code the following packages are needed:
 - *PyVista*; it's for easy visualization purposes. Normally installed via `pip install pyvista`. Take into account that PyVista extends dependencies from Matplotlib, NumPy and VTK. The latter requires that imaging compilers such as _libmesa_ (if you are running Linux) are downloaded.
 
 ## Team
-* [Elena Raponi]([https://www.universiteitleiden.nl/en/staffmembers/elena-raponi#tab-1]), *Leiden Institute of Advanced Computer Science*,
+* [Elena Raponi](https://www.universiteitleiden.nl/en/staffmembers/elena-raponi#tab-1), *Leiden Institute of Advanced Computer Science*,
 * [Iván Olarte Rodríguez](https://www.universiteitleiden.nl/en/staffmembers/furong-ye#tab-1), *Leiden Institute of Advanced Computer Science*
 
 
