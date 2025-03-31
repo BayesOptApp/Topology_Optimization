@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrappers import Design_IOH_Wrapper
+from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
@@ -29,8 +29,8 @@ except:
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =98894
-RUN_E:int = 90
+RANDOM_SEED:int =988989
+RUN_E:int = 98
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -43,15 +43,9 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
                 Be careful to set these numbers to be high as this might make the runs much slower. We recommend to use the same ratios used by Guo et al. [1]
 - nmmcsx: `int`: Number of Moving morphable components in x-direction (for initialization purposes) -> is functional so far, but this parameter is intended to be deprecated in the future.
 - nmmcsy: `int`: Number of Moving morphable components in y-direction (for initialization purposes)
-- mode: `str`: This is a parameter to choose between two modes. The first mode, namely `TO` just refers to optimize the topology without fiber steering. 
-               Whereas the mode `TO+LP` optimizes both the topology and lamination parameters. By activating the latter mode, the number of variables of the problem scales as
-               D=5*nmmcs + 3, where 'nmmcs' stands for total number of Moving Morphable components (MMC). You can compute the total number of MMC by just computing nmmcs = nmmcsx * nmmcsy.
 - symmetry_condition: `bool`: When activated this symmetry condition, then the topology is mirrored along the x-axis. 
 - volfrac: `float`: A floating point value between 0 to 1, which determines the constraint of the total amount of available volume (area technically) the structure should occupy.
 - use_sparse_matrices: `bool`: A handle to switch the solver use either full matrices and sparse matrices. This is intended to be deprecated. For performance reasons set it to `True`.
-- VR: `float`: A floating point value between 0 to 1 denoting the volume ratio of fiber to matrix of the composite material.
-- V3_1_init: `float`: A floating point value between -1 to 1 denoting the first lamination parameter
-- V3_2_init: `float`: A floating point value between -1 to 1 denoting the second lamination parameter.
 - plot_variables: `bool`: A trigger to plot the Von Mises Stress Contours and deformed structure from good designs. 
                           The threshold is hard coded to plot every design which has a target value less than 4. For upcoming versions, the threshold will be set by the user from this point on.
 - E0: `float`: Just a parameter to represent the material presence of an element. This parameter was set for numerical studies, but just fix it to 1.00
@@ -64,17 +58,12 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 # Generate Obj
 ioh_prob:Design_IOH_Wrapper = Design_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
-                                                #nmmcsx=10,
                                                 nmmcsx=3,
                                                 nmmcsy=2,
-                                                mode="TO",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
-                                                VR=0.5,
-                                                V3_1_init=0, #-0.1,
-                                                V3_2_init=0, #-0.4,
-                                                plot_variables=False,
+                                                plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E)
@@ -90,7 +79,7 @@ triggers = [
 
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
-    folder_name=f"./Figures_Python/Run_{run_e}",       # in a folder named: './Figures_Python/Run_{run_e}'
+    folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
     algorithm_name="CMA-ES",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
@@ -121,8 +110,7 @@ In this topology framework, the problem has a container of 4 constraint function
                                   distance (or max min norm) in a sense to check the minimum distance of a material element which is closest to the leftwise part of the domain.
 2. Neumann Boundary Condition-> Similar to the first constraint function, ensures there is at least a material element next to the point load application node. And if not, then computes the 
                                 Minkowski distance finding the least distance to the closest material element in the mesh.
-3. Connectivity Condition-> A function, which uses the "Burning Forest Algorithm" and segments different segments or bodies of material. This is an extra penalty for Evolutionary Strategies
-                            such as CMA-ES in order to select designs whose beams are make up just one full body and not different segments.
+3. Connectivity Condition-> A function, which checks if the design is connected. 
 4. Volume Constraint-> Computes the fractional volume occupation (max(0,volume of the design/total volume)-volfrac) excess from the constraint. 
 
 To run unbounded and/or search algorithms, we recommend to set the constraints 1 (Dirichlet) and 2 (Neumann) as type 4 such that the original target is not computed in such case. This is because
@@ -132,25 +120,28 @@ the dynamic matrices of the system are ill-conditioned. On the other hand we inv
 ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
 ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
 
-# Convert connectivity to a hidden
-ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
+# Convert connectivity to a Hard constraint
+ioh_prob.convert_defined_constraint_to_type(2,4) # Connectivity
 
 # Convert volume constraint soft
-ioh_prob.convert_defined_constraint_to_type(3,3)
+ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
 
 # Set an initial starting point for CMA-ES
 x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
 
 # Set the options for cma package `fmin` 
-opts:cma.CMAOptions = {'bounds':[0,1],'tolfun':1e-6,'seed':RANDOM_SEED,'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
+opts:cma.CMAOptions = {'bounds':[0,1],
+                       'tolfun':1e-6,
+                       'seed':RANDOM_SEED,
+                       'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
 }
 
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-fmin(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
+fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
 
 ioh_prob.reset()
 logger.close()
