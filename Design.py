@@ -26,13 +26,13 @@ from FEA import compute_objective_function
 from dataclasses import dataclass
 
 # Import Typing library
-from typing import List
+from typing import List, Tuple, Optional, Union
 
 # Import the MMC Library
-from MMC import MMC
+from geometry_parameterizations.MMC import MMC
 
 # Import the Topology library
-from Topology import Topology
+from utils.Topology import Topology
 
 # Import IOH Real Problem
 import ioh
@@ -44,14 +44,11 @@ from Initialization import prepare_FEA
 # ---------------------------------------------CONSTANTS----------------------------------------------
 # ----------------------------------------------------------------------------------------------------
 
-# Names to check for optimisation of Lamination Parameters
-KEY_NAMES = ("VR","V3_1","V3_2")
-
-# Default optimization modes
-OPT_MODES = ('TO','TO+LP','LP')
-
 # Default scalation modes
 SCALATION_MODES = ("Bujny","unitary")
+
+# Continuity check modes
+CONTINUITY_CHECK_MODES = ("continuous","discrete")
 
 # -----------------------------------------------------------------------------------------------------
 # --------------------------------------------CLASS DEFINITION-----------------------------------------
@@ -63,13 +60,13 @@ class Design:
     and its properties
     '''
     def __init__(self, nmmcsx:int, nmmcsy:int, nelx:int, nely:int,
-                 VR:float = 0.5, V3_1:float = 0.0, V3_2:float = 0.0,
-                 mode:str=OPT_MODES[0],symmetry_condition:bool=False,
+                 symmetry_condition:bool=False,
                  scalation_mode:str = "Bujny",
                  initialise_zero:bool=False,
                  add_noise:bool = False,
                  E0:float = 1.00,
                  Emin:float = 1e-09,
+                 continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
                  **kwargs):
         '''
         Constructor of the class
@@ -101,10 +98,10 @@ class Design:
         self.__nmmcsy:int = nmmcsy
         self.__nelx:int = nelx
         self.__nely:int = nely
-        self.__mode:str = mode
         self.__symmetry_condition:bool = symmetry_condition
         self.__E0:float = E0
         self.__Emin:float = Emin
+        self.continuity_check_mode:str = continuity_check_mode
 
         if scalation_mode in SCALATION_MODES:
             self.__scalation_mode:str = scalation_mode
@@ -112,24 +109,19 @@ class Design:
         else:
             raise ValueError("The scalation mode is not allowed")
 
-        
-        # Set the values of the Lamination Parameters     
-        self.__VR:float = VR
-        self.__V3_1:float = V3_1
-        self.__V3_2:float = V3_2
 
         # Initialise score
-        self.__score_FEA:float = np.nan
+        self._score_FEA:float = np.nan
 
         #Initialise pre-scores
-        self.__pre_score:float = np.nan
+        self._pre_score:float = np.nan
 
         lx:float = nelx/nmmcsx
 
         ly:float = nely/nmmcsy
         angle:float = math.atan2(ly,lx)
         length:float = math.sqrt(lx**2.0 + ly**2.0)
-        thickness:float = max([1.0, 0.5*self.__nelx*self.__nely/
+        thickness:float = max([1.0, 0.5*self.nelx*self.nely/
                                     (2*self.__nmmcsx*self.__nmmcsy*length)])
 
         
@@ -144,7 +136,7 @@ class Design:
         self.scalation_mode = scalation_mode
 
         # Set the linked topology
-        self.__topo:Topology = Topology(np.zeros((nely,nelx)),E0,Emin)
+        self._topo:Topology = Topology(np.zeros((nely,nelx)),E0,Emin)
 
         
         # Proceed with the non-zero initialisation
@@ -155,7 +147,7 @@ class Design:
             
 
             # Recompute the topology
-            self.__topo = self.__topo.from_floating_array(self.__density_mapping(E0=E0,Emin=Emin))
+            self._topo = self._topo.from_floating_array(self._density_mapping(E0=E0,Emin=Emin))
 
         else:
             # Run the zero initialisation
@@ -179,7 +171,7 @@ class Design:
         # Generate Member variable storing the MMCs
         self.__list_of_MMC:List[MMC] = []
 
-        self.__zero_valued:bool = False
+        self._zero_valued:bool = False
         if self.__nmmcsy == 1:
             for ii in range(1,self.__nmmcsx+1):
                 
@@ -316,7 +308,7 @@ class Design:
         ' Perform the initialisation of all MMC to zero values'
         self.__list_of_MMC:List[MMC] = []
 
-        self.__zero_valued:bool = True
+        self._zero_valued:bool = True
         
         # Determine the number of MMCs to generate
         
@@ -340,16 +332,16 @@ class Design:
         Better suited for Evolutionary-Mutation Approaches
         '''
 
-        self.__pos_X_norm:float = self.__nelx
+        self._pos_X_norm:float = self.__nelx
 
         if self.__symmetry_condition == True:
-            self.__pos_Y_norm:float = self.__nely/2
+            self._pos_Y_norm:float = self.__nely/2
         else:
-            self.__pos_Y_norm:float = self.__nely
+            self._pos_Y_norm:float = self.__nely
 
-        self.__angle_norm:float = math.pi
-        self.__length_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
-        self.__thickness_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
+        self._angle_norm:float = math.pi
+        self._length_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
+        self._thickness_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
     
     def __set_unitary_normalisation__(self)->None:
         '''
@@ -357,24 +349,24 @@ class Design:
         Better suited for BO Optimisation
         '''
 
-        self.__pos_X_norm:float = self.__nelx
+        self._pos_X_norm:float = self.__nelx
 
         if self.__symmetry_condition == True:
-            self.__pos_Y_norm:float = self.__nely/2
+            self._pos_Y_norm:float = self.__nely/2
         else:
-            self.__pos_Y_norm:float = self.__nely
+            self._pos_Y_norm:float = self.__nely
         
-        self.__angle_norm:float = math.pi
+        self._angle_norm:float = math.pi
 
         ## TODO: Set the effect of this normalization
         
         #self.__length_norm:float = 4*self.__default_length
-        self.__thickness_norm:float = 4*self.__default_thickness
+        self._thickness_norm:float = 4*self.__default_thickness
 
         if self.__symmetry_condition == True:
-            self.__length_norm:float = math.sqrt(self.__nelx**2+(self.__nely/2)**2)
+            self._length_norm:float = math.sqrt(self.__nelx**2+(self.__nely/2)**2)
         else:
-            self.__length_norm:float = math.sqrt(self.__nelx**2+self.__nely**2)
+            self._length_norm:float = math.sqrt(self.__nelx**2+self.__nely**2)
         #self.__length_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
         #self.__thickness_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
 
@@ -394,23 +386,20 @@ class Design:
 
         # Read the topology
         try:
-            self.__topo = self.__topo.from_file(file_path=file_path)
+            self._topo = self._topo.from_file(file_path=file_path)
         except:
             print("The topology could not be loaded")
         else:
             # Check the dimensions are the same
-            if self.__topo.nelx != self.__nelx or self.__topo.nely != self.__nely:
+            if self._topo.nelx != self.__nelx or self._topo.nely != self.__nely:
                 raise ValueError(f"The number of elements do not match with the ones of the design")
-            
-            #Change the mode
-            self.__mode = "LP"
 
             # set everything to zero
             self.__zero_initialisation__()
 
             #Change E0 and Emin by the ones of the new topology
-            self.__E0 = self.__topo.E0
-            self.__Emin = self.__topo.Emin
+            self.__E0 = self._topo.E0
+            self.__Emin = self._topo.Emin
 
             # Set the cost and pre cost to nan
             #self.__pre_score = np.nan
@@ -430,12 +419,12 @@ class Design:
         param_array:np.ndarray = np.zeros((1,5*len(self.__list_of_MMC)),
                                           dtype=float)
         
-        if self.__zero_valued:
+        if self._zero_valued:
             return param_array
         
         else:
             # Perform a loop all over the list of MMCs
-            for ii in range(len(self.__list_of_MMC)):
+            for ii in range(len(self.list_of_MMC)):
                 # Store in the following order
                 # 1. X_position
                 # 2. Y_position
@@ -443,26 +432,26 @@ class Design:
                 # 4. Length
                 # 5. Thickness
                 
-                param_array[0,5*ii] = self.__list_of_MMC[ii].pos_X
-                param_array[0,5*ii+1] = self.__list_of_MMC[ii].pos_Y
-                param_array[0,5*ii+2] = self.__list_of_MMC[ii].angle
-                param_array[0,5*ii+3] = self.__list_of_MMC[ii].length
-                param_array[0,5*ii+4] = self.__list_of_MMC[ii].thickness
+                param_array[0,5*ii] = self.list_of_MMC[ii].pos_X
+                param_array[0,5*ii+1] = self.list_of_MMC[ii].pos_Y
+                param_array[0,5*ii+2] = self.list_of_MMC[ii].angle
+                param_array[0,5*ii+3] = self.list_of_MMC[ii].length
+                param_array[0,5*ii+4] = self.list_of_MMC[ii].thickness
         
             return param_array
     
     def get_array_of_scaled_MMC_properties(self)->np.ndarray:
         
         # Create the array 
-        param_array:np.ndarray = np.zeros((1,5*len(self.__list_of_MMC)),
+        param_array:np.ndarray = np.zeros((1,5*len(self.list_of_MMC)),
                                           dtype=float)
         
-        if self.__zero_valued:
+        if self._zero_valued:
             return param_array
         
         else:
             # Perform a loop all over the list of MMCs
-            for ii in range(len(self.__list_of_MMC)):
+            for ii in range(len(self.list_of_MMC)):
                 # Store in the following order
                 # 1. X_position
                 # 2. Y_position
@@ -470,11 +459,11 @@ class Design:
                 # 4. Length
                 # 5. Thickness
                 
-                scaled_arr:np.ndarray = self.__list_of_MMC[ii].return_all_scaled_parameters(self.__pos_X_norm,
-                                                                                            self.__pos_Y_norm,
-                                                                                            self.__angle_norm,
-                                                                                            self.__length_norm,
-                                                                                            self.__thickness_norm)
+                scaled_arr:np.ndarray = self.list_of_MMC[ii].return_all_scaled_parameters(self._pos_X_norm,
+                                                                                            self._pos_Y_norm,
+                                                                                            self._angle_norm,
+                                                                                            self._length_norm,
+                                                                                            self._thickness_norm)
                 
                 param_array[0,5*ii:5*ii+5] = scaled_arr
         
@@ -489,7 +478,7 @@ class Design:
             param_array:np.ndarray = np.zeros((1,2*5*len(self.__list_of_MMC)),
                                               dtype=float)
             
-            if self.__zero_valued:
+            if self._zero_valued:
                 return param_array
             
             else:
@@ -507,7 +496,7 @@ class Design:
                     # 4. Length
                     # 5. Thickness
                     
-                    unscaled_arr:np.ndarray = self.__list_of_MMC[ii].return_all_parameters()
+                    unscaled_arr:np.ndarray = self.list_of_MMC[ii].return_all_parameters()
                     
                     unscaled_arr_2:np.ndarray = np.copy(unscaled_arr)
                     
@@ -529,7 +518,7 @@ class Design:
             raise AttributeError("The symmetry condition is not imposed!")
         
         else:
-            if self.__zero_valued:
+            if self._zero_valued:
                 raise AttributeError("All the MMC properties are zero valued!")
             else:
                 # Generate a deep copy of the list of saved MMC
@@ -566,33 +555,14 @@ class Design:
         
         if scaled:
             # If scaled is chosen, extract the array of scaled MMC properties 
+            compl_array:np.ndarray = self.get_array_of_scaled_MMC_properties()
 
-            if self.mode.find("TO") != -1:
-                compl_array:np.ndarray = self.get_array_of_scaled_MMC_properties()
-            else:
-                compl_array = np.array([]).reshape((1,-1))
-            
-
-            lam_params:np.ndarray =  self.get_scaled_lamination_parameters().reshape((1,3))
-
-            if self.mode.find("LP") !=-1:
-                compl_array = np.hstack((compl_array,lam_params))
-            
-            return compl_array
 
         else:
             # If scaled is not chosen,extract the array of unscaled MMC properties
-
-            if self.mode.find("TO") != -1:
-                compl_array:np.ndarray = self.get_array_of_unscaled_MMC_properties()
-            else:
-                compl_array:np.ndarray = np.array([]).reshape((1,-1))
-
-            lam_params:np.ndarray =  self.get_lamination_parameters().reshape((1,3))   
-            if self.mode.find("LP") !=-1:
-                compl_array:np.ndarray = np.hstack((compl_array,lam_params))
-            
-            return compl_array
+            compl_array:np.ndarray = self.get_array_of_unscaled_MMC_properties()
+ 
+        return compl_array
 
      
 
@@ -603,28 +573,28 @@ class Design:
             raise AttributeError("The symmetry condition is not imposed!")
         else:
             # Create the array
-            param_array:np.ndarray = np.zeros((1,2*5*len(self.__list_of_MMC)),
+            param_array:np.ndarray = np.zeros((1,2*5*len(self.list_of_MMC)),
                                               dtype=float)
             
-            if self.__zero_valued:
+            if self.zero_valued:
                 return param_array
             
             else:
             
                 # Parameter to indicate the starting point of second half
-                init_point:int = 5*len(self.__list_of_MMC)
+                init_point:int = 5*len(self.list_of_MMC)
                 
                 # Generate a deep copy of the list of saved MMC
-                copy_list_of_MMC:list = deepcopy(self.__list_of_MMC)
+                copy_list_of_MMC:List[MMC] = deepcopy(self.list_of_MMC)
                 
                 # Fill the first part of the properties
                 # Perform a loop all over the list of MMCs
-                for ii in range(len(self.__list_of_MMC)):
+                for ii in range(len(self.list_of_MMC)):
                     
                     # Modify in the copy list
-                    copy_list_of_MMC[ii].pos_Y =self.__nely - self.__list_of_MMC[ii].pos_Y
+                    copy_list_of_MMC[ii].pos_Y =self.__nely - self.list_of_MMC[ii].pos_Y
                     
-                    copy_list_of_MMC[ii].angle = math.pi- self.__list_of_MMC[ii].angle
+                    copy_list_of_MMC[ii].angle = math.pi- self.list_of_MMC[ii].angle
                     
                     # Store in the following order
                     # 1. X_position
@@ -633,18 +603,18 @@ class Design:
                     # 4. Length
                     # 5. Thickness
                     
-                    unscaled_arr:np.ndarray = self.__list_of_MMC[ii].return_all_scaled_parameters(pos_X_ref= self.__pos_X_norm,
-                                                                                                  pos_Y_ref= self.__pos_Y_norm,
-                                                                                                  angle_ref=self.__angle_norm,
-                                                                                                  length_ref=self.__length_norm,
-                                                                                                  thickness_ref=self.__thickness_norm
+                    unscaled_arr:np.ndarray = self.list_of_MMC[ii].return_all_scaled_parameters(pos_X_ref= self._pos_X_norm,
+                                                                                                  pos_Y_ref= self._pos_Y_norm,
+                                                                                                  angle_ref=self._angle_norm,
+                                                                                                  length_ref=self._length_norm,
+                                                                                                  thickness_ref=self._thickness_norm
                                                                                                   )
                     
-                    unscaled_arr_2:np.ndarray = copy_list_of_MMC[ii].return_all_scaled_parameters(pos_X_ref= self.__pos_X_norm,
-                                                                                                  pos_Y_ref= self.__pos_Y_norm,
-                                                                                                  angle_ref=self.__angle_norm,
-                                                                                                  length_ref=self.__length_norm,
-                                                                                                  thickness_ref=self.__thickness_norm
+                    unscaled_arr_2:np.ndarray = copy_list_of_MMC[ii].return_all_scaled_parameters(pos_X_ref= self._pos_X_norm,
+                                                                                                  pos_Y_ref= self._pos_Y_norm,
+                                                                                                  angle_ref=self._angle_norm,
+                                                                                                  length_ref=self._length_norm,
+                                                                                                  thickness_ref=self._thickness_norm
                                                                                                   )
                     
                     # Fill the first part
@@ -660,11 +630,13 @@ class Design:
     # DENSITY MAPPING FUNCTION 
     # ------------------------------------------------------------------------------------------------
      
-    def __density_mapping(self,E0:float=1.0,Emin:float=1.0e-09)->np.ndarray:
-        '''
+    def _density_mapping(self,E0:float=1.0,Emin:float=1.0e-09)->np.ndarray:
+        r'''
         Density-based mapping of the global level-set function on the FE mesh.
+
         Inputs:
-            - Emin: Elastic modulus of empty density element
+        --------
+            - Emin: Elastic modulus of empty density element.
             - E0: Reference elastic modulus of full density element
         '''
 
@@ -680,7 +652,7 @@ class Design:
         
         
         if self.__symmetry_condition == False:
-            mmC_complete_list:List[MMC] = self.__list_of_MMC[:]
+            mmC_complete_list:List[MMC] = self.list_of_MMC[:]
         else:
             mmC_complete_list:List[MMC] = self.__build_ghost_MMC_array_with_symmetry_conditions__()
         
@@ -739,14 +711,14 @@ class Design:
             # Check if any of the constraints are violated
             if np.any(comp_array==False):
                 # Update the pre cost
-                self.__pre_score = 1e20
+                self._pre_score = 1e20
                 return 1e20
 
         # Compute the density mapping
-        xPhys:np.ndarray = self.__topo.return_floating_topology()
+        xPhys:np.ndarray = self._topo.return_floating_topology()
         xPhys_arr:np.ndarray = np.ravel(xPhys,order='F')
-        aux:np.ndarray = self.__Emin+np.multiply(xPhys_arr.reshape(-1,1),self.__topo.E0
-                                                 -self.__topo.Emin)
+        aux:np.ndarray = self.__Emin+np.multiply(xPhys_arr.reshape(-1,1),self._topo.E0
+                                                 -self._topo.Emin)
         KE_aux:np.ndarray = np.ravel(KE,order='F')
         sK:np.ndarray =  np.expand_dims(KE_aux.flatten(order='F'),axis=1) @ (np.expand_dims(aux.flatten(order='F'),axis=1).T)
         del aux, KE_aux
@@ -770,7 +742,7 @@ class Design:
         del aux, aux1
 
         # Compute compliance value
-        compliance = np.sum(np.multiply(self.__Emin+xPhys*(self.__topo.E0-self.__topo.Emin),ce))
+        compliance = np.sum(np.multiply(self.__Emin+xPhys*(self._topo.E0-self._topo.Emin),ce))
 
         cost:float = compliance + penalty_factor*max(0.0, self.compute_volume_ratio() - volfrac)
         
@@ -810,19 +782,19 @@ class Design:
             # Check if any of the constraints are violated
             if np.any(comp_array==False):
                 # Update the cost
-                self.__score_FEA = 1e20
+                self._score_FEA = 1e20
                 return 1e20
 
         # Compute the topology optimisation matrix
-        TO_mat:np.ndarray = self.__topo.return_floating_topology()
+        TO_mat:np.ndarray = self._topo.return_floating_topology()
 
         # Compute the cost of the Design
-        cost:float = evaluate_FEA(x=np.array([self.__VR,self.__V3_1,self.__V3_2]),
-                                    TO_mat=TO_mat,
+        cost:float = evaluate_FEA( TO_mat=TO_mat,
                                     iterr = iterr,
                                     sample = sample,
-                                    volfrac=volfrac,
-                                    Emin=self.__Emin,E0=self.__E0,
+                                    volfrac= volfrac,
+                                    Emin=self.Emin,
+                                    E0=self.E0,
                                     run_=run_,
                                     sparse_matrices_solver=use_sparse_matrices,
                                     plotVariables=plotVariables,
@@ -855,57 +827,34 @@ class Design:
     def nely(self)->int:
         return self.__nely
     
-    @property
-    def mode(self)->str:
-        return self.__mode
-    
-    @mode.setter
-    def mode(self,new_mode:str)->None:
-        if isinstance(new_mode,str):
-            if new_mode == "TO" or new_mode =="TO+LP" or new_mode =="LP":
-                self.__mode = new_mode
-        else:
-            raise ValueError("The mode should be a string value")
-    
 
     def problem_name(self)->str:
         r"""
             This function returns the Full_Name of the problem given the 
             mode
         """
-        if self.mode == "TO":
-            return "Topology_Optimization_Without_Lamination_Parameters"
-        elif self.mode == "TO+LP":
-            return "Topology_Optimization_With_Lamination_Parameters"
-        elif self.mode == "LP":
-            return "Lamination_Parameters Optimization"
         
+        return "Topology_Optimization_MMC"
     
     @property
-    def VR(self)->float:
-        return self.__VR
+    def zero_valued(self)->bool:
+        return self._zero_valued
+    
+    @zero_valued.setter
+    def zero_valued(self,zero_valued:bool)->None:
+        '''
+        Sets the zero valued initialisation to True or False
+        '''
+        if not isinstance(zero_valued,bool):
+            raise ValueError("The zero_valued parameter should be a boolean")
+        else:
+            self._zero_valued = zero_valued
 
-    @property           
-    def V3_1(self)->float:    
-        return self.__V3_1
-    
-    @property 
-    def V3_2(self)->float:
-        return self.__V3_2
-    
-    def get_lamination_parameters(self)->np.ndarray:
-        return np.array([self.__VR, self.__V3_1,self.__V3_2 ])
-    
-    def get_scaled_lamination_parameters(self)->np.ndarray:
-        return np.array([self.__VR, 0.5*(self.__V3_1+1),0.5*(self.__V3_2+1)])
     
     @property
     def list_of_MMC(self):
         return copy(self.__list_of_MMC)
     
-    @property
-    def zero_valued(self)->bool:
-        return self.__zero_valued
     
     @property
     def symmetry_condition_imposed(self)->bool:
@@ -913,11 +862,11 @@ class Design:
     
     @property
     def score_FEA(self)->float:
-        return self.__score_FEA
+        return self._score_FEA
     
     @property
     def pre_score(self)->float:
-        return self.__pre_score
+        return self._pre_score
     
     @property
     def scalation_mode(self)->str:
@@ -949,14 +898,8 @@ class Design:
         Returns the dimension of the optimisation problem
         '''
 
-        if self.mode == "TO":
-            return len(self.__list_of_MMC)*5
-        elif self.mode == "TO+LP":
-            return len(self.__list_of_MMC)*5+3
-        elif self.mode == "LP":
-            return 3
-        else:
-            raise AttributeError()
+        return len(self.__list_of_MMC)*5
+
     
     @property
     def topology(self)->np.ndarray:
@@ -964,7 +907,7 @@ class Design:
         Returns the inherent topology of the design
         '''
 
-        return self.__topo.return_floating_topology()
+        return self._topo.return_floating_topology()
     
     @property
     def Emin(self)->float:
@@ -984,7 +927,7 @@ class Design:
         '''
         #Check if there is no error setting the new Emin
         try:
-            self.__topo.Emin = new_Emin
+            self._topo.Emin = new_Emin
         except:
             print("Some error occurred")
         else:
@@ -1009,12 +952,35 @@ class Design:
         '''
         #Check if there is no error setting the new Emin
         try:
-            self.__topo.E0 = new_E0
+            self._topo.E0 = new_E0
         except:
             print("Some error occurred")
         else:
             # Change the value of the Design Class
             self.__E0 = new_E0
+    
+    @property
+    def continuity_check_mode(self)->str:
+        '''
+        Returns the continuity check mode
+        '''
+        return self.__continuity_check_mode
+    
+    @continuity_check_mode.setter
+    def continuity_check_mode(self,new_mode:str)->None:
+        '''
+        Sets the continuity check mode
+
+        Inputs:
+        - new_mode: `str`: new mode to set 
+        '''
+        if not isinstance(new_mode,str):
+            raise ValueError("The new scalation mode should be a string")
+        else:
+            if new_mode.strip().lower() not in CONTINUITY_CHECK_MODES:
+                raise ValueError("The new scalation_mode is not allowed")
+            else:
+                self.__continuity_check_mode = new_mode.strip().lower()
     
 
     
@@ -1036,15 +1002,11 @@ class Design:
                         lie outside the admissible range
         - kwargs: keyword arguments (tolerance, min_thickness)
         '''
-        if self.__zero_valued== True:
-            self.__zero_valued = False
+        if self._zero_valued== True:
+            self._zero_valued = False
 
         # Modify the pre-score
-        self.__pre_score = np.nan
-
-        # Check if the mode is just for Lamination Parameter modification. If so raise an error
-        if self.mode == "LP":
-            raise PermissionError("The mode is set to 'LP'. Then, the MMC cannot be modified!")
+        self.pre_score = np.nan
         
         # Check if the repair level is an acceptable value
         if not (repair_level ==0 or repair_level == 1 or repair_level == 2):
@@ -1092,15 +1054,12 @@ class Design:
         - kwargs: keyword arguments (tolerance, min_thickness)
         '''
 
-        if self.__zero_valued== True:
-            self.__zero_valued = False
+        if self.zero_valued== True:
+            self.zero_valued = False
 
         # Modify the pre-score
-        self.__pre_score = np.nan
+        self._pre_score = np.nan
 
-        # Check if the mode is just for Lamination Parameter modification. If so raise an error
-        if self.mode == "LP":
-            raise PermissionError("The mode is set to 'LP'. Then, the MMC cannot be modified!")
         
         # Check if the repair level is an acceptable value
         if not (repair_level ==0 or repair_level == 1 or repair_level == 2):
@@ -1123,72 +1082,17 @@ class Design:
             curMMC:MMC = self.__list_of_MMC[jj]
 
             # Change the values
-            curMMC.change_pos_X_from_scaled_value(samp_array_manip[ii],self.__pos_X_norm)
-            curMMC.change_pos_Y_from_scaled_value(samp_array_manip[ii+1],self.__pos_Y_norm)
-            curMMC.change_angle_from_scaled_value(samp_array_manip[ii+2],self.__angle_norm)
-            curMMC.change_length_from_scaled_value(samp_array_manip[ii+3],self.__length_norm)
-            curMMC.change_thickness_from_scaled_value(samp_array_manip[ii+4],self.__thickness_norm)
+            curMMC.change_pos_X_from_scaled_value(samp_array_manip[ii],self._pos_X_norm)
+            curMMC.change_pos_Y_from_scaled_value(samp_array_manip[ii+1],self._pos_Y_norm)
+            curMMC.change_angle_from_scaled_value(samp_array_manip[ii+2],self._angle_norm)
+            curMMC.change_length_from_scaled_value(samp_array_manip[ii+3],self._length_norm)
+            curMMC.change_thickness_from_scaled_value(samp_array_manip[ii+4],self._thickness_norm)
             
             if repair_level ==1 or repair_level == 2:
                 curMMC.repair_MMC(self.__nelx,self.__nely,repair_level=repair_level,
                                   min_thickness=min_thickness,tol=tol)
             
             
-    def __modify_lamination_parameters_from_array(self,new_LM_array:np.ndarray,scaled:bool)->None:
-        '''
-        Modify the lamination parameters of the Design from given array.
-        The array should hold 3 elements at least.
-
-        Inputs:
-        - new_LM_array: array with the new values of lamination parameters
-        - scaled: boolean variable controlling whether the values are scaled or not
-        '''
-
-        if self.__mode == OPT_MODES[0]:
-            raise AttributeError("The optimisation mode is just set to topology optimization \n" +
-                                 "Therefore the lamination parameters cannot be modified")
-        else:
-
-            # Check the score is not nan
-            # if not np.isnan(self.__score_FEA):
-            #     self.__score_FEA = np.nan
-            
-            # if type(new_LM_array) != np.ndarray:
-            #     new_LM_array = np.array(new_LM_array)
-            
-            # For safety flatten the array and check if the number of elements is equal to 3
-            new_LM_array = new_LM_array.ravel()
-
-            if len(new_LM_array) != 3:
-                raise ValueError("The number of elements of new array shall be equal to 3")
-            
-            # Modify values if scaled value is used
-            if scaled:
-                new_LM_array = [new_LM_array[0],new_LM_array[1]/0.5-1,new_LM_array[2]/0.5-1]
-        
-            # Apply the "repair" operator
-            if new_LM_array[0] < 0.0 or new_LM_array[0] > 1.0:
-                if new_LM_array[0] < 0.0:
-                    new_LM_array[0] = 0.0
-                else:
-                    new_LM_array[0] = 1.0
-            
-            if new_LM_array[1] < -1.0 or new_LM_array[1] > 1.0:
-                if new_LM_array[1] < -1.0:
-                    new_LM_array[1] = -1.0
-                else:
-                    new_LM_array[1] = 1.0
-            
-            if new_LM_array[2] < -1.0 or new_LM_array[2] > 1.0:
-                if new_LM_array[2] < -1.0:
-                    new_LM_array[2] = -1.0
-                else:
-                    new_LM_array[2] = 1.0
-            
-            # Assign the values of the array
-            self.__VR = new_LM_array[0]
-            self.__V3_1 = new_LM_array[1]
-            self.__V3_2 = new_LM_array[2]
     
     def modify_mutable_properties_from_array(self,new_properties_array:np.ndarray,
                                              scaled:bool,repair_level:int=2)->None:
@@ -1218,37 +1122,16 @@ class Design:
             raise ValueError("The dimension of the array is different than the dimension of " + 
                              "allowed mutable properties")
         
-        if self.mode == "TO+LP":
-                # Split the array into two
-                newArr:np.ndarray = new_properties_array_mod[0:new_properties_array_mod.size-3]
-                otherArr:np.ndarray = new_properties_array_mod[new_properties_array_mod.size-3:
-                                                               new_properties_array_mod.size]
 
-                # Modify the Lamination Parameters
-                self.__modify_lamination_parameters_from_array(otherArr,scaled)
-                # Modify the values of MMC parameters
-                if scaled:           
-                    self.__change_values_of_MMCs_from_unscaled_array(newArr,repair_level=repair_level)              
-                else:
-                    self.__change_values_of_MMCs_from_array(newArr,repair_level=repair_level)
-
-                # Recompute the topology
-                self.__topo = self.__topo.from_floating_array(self.__density_mapping(self.__E0,self.__Emin))
-
-        elif self.mode == "TO":
-            if scaled:
-                self.__change_values_of_MMCs_from_unscaled_array(new_properties_array_mod,
-                                                                    repair_level=repair_level)  
-            else:                
-                self.__change_values_of_MMCs_from_array(new_properties_array_mod,repair_level=repair_level)
-            
-            # Recompute the topology
-            self.__topo = self.__topo.from_floating_array(self.__density_mapping(self.__E0,self.__Emin))
-
-        else:
-            # Modify the Lamination Parameters
-            self.__modify_lamination_parameters_from_array(new_properties_array_mod,scaled)
-            
+        if scaled:
+            self.__change_values_of_MMCs_from_unscaled_array(new_properties_array_mod,
+                                                                repair_level=repair_level)  
+        else:                
+            self.__change_values_of_MMCs_from_array(new_properties_array_mod,repair_level=repair_level)
+        
+        # Recompute the topology
+        self._topo = self._topo.from_floating_array(self._density_mapping(self.E0,self.Emin))
+          
     
     def compute_volume_ratio(self)-> float:
         """
@@ -1265,7 +1148,7 @@ class Design:
         """
         
         
-        return self.__topo.compute_volume_ratio()
+        return self._topo.compute_volume_ratio()
     
     
     def dirichlet_boundary_conditions_compliance(self)-> float:
@@ -1282,7 +1165,7 @@ class Design:
         """
         
         # Get a copy of the associated topology
-        assoc_topology:np.ndarray = self.__topo.return_floating_topology()
+        assoc_topology:np.ndarray = self._topo.return_floating_topology()
 
         # Check there is at least one active element at the leftmost 
         
@@ -1348,7 +1231,7 @@ class Design:
    
         
         # Get a copy of the associated topology
-        assoc_topology:np.ndarray = self.__topo.return_floating_topology()
+        assoc_topology:np.ndarray = self._topo.return_floating_topology()
         
         # Given the problem is the cantilever beam, the inspection is based
         # on checking at least there is material in contact with the imposed

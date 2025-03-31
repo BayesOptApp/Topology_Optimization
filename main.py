@@ -14,7 +14,8 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrappers import Design_IOH_Wrapper
+from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
@@ -29,8 +30,8 @@ except:
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =98894
-RUN_E:int = 90
+RANDOM_SEED:int =98898
+RUN_E:int = 94
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -71,10 +72,10 @@ ioh_prob:Design_IOH_Wrapper = Design_IOH_Wrapper(nelx=100,
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
-                                                VR=0.5,
-                                                V3_1_init=0, #-0.1,
-                                                V3_2_init=0, #-0.4,
-                                                plot_variables=False,
+                                                # VR=0.5,
+                                                # V3_1_init=0, #-0.1,
+                                                # V3_2_init=0, #-0.4,
+                                                plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E)
@@ -90,7 +91,7 @@ triggers = [
 
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
-    folder_name=f"./Figures_Python/Run_{run_e}",       # in a folder named: './Figures_Python/Run_{run_e}'
+    folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
     algorithm_name="CMA-ES",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
@@ -143,14 +144,17 @@ ioh_prob.convert_defined_constraint_to_type(3,3)
 x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
 
 # Set the options for cma package `fmin` 
-opts:cma.CMAOptions = {'bounds':[0,1],'tolfun':1e-6,'seed':RANDOM_SEED,'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
+opts:cma.CMAOptions = {'bounds':[0,1],
+                       'tolfun':1e-6,
+                       'seed':RANDOM_SEED,
+                       'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
 }
 
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-fmin(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
+fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
 
 ioh_prob.reset()
 logger.close()
