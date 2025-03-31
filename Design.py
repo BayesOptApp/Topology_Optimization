@@ -38,7 +38,7 @@ from utils.Topology import Topology
 import ioh
 
 # Import the Initialization
-from Initialization import prepare_FEA
+from utils.Initialization import prepare_FEA
 
 # ----------------------------------------------------------------------------------------------------
 # ---------------------------------------------CONSTANTS----------------------------------------------
@@ -1164,24 +1164,58 @@ class Design:
         
         """
         
-        # Get a copy of the associated topology
-        assoc_topology:np.ndarray = self._topo.return_floating_topology()
 
-        # Check there is at least one active element at the leftmost 
-        
-        # Given the problem is the cantilever beam, the inspection is based
-        # on checking at least the left-most elements of the topology is one
-        if np.sum(assoc_topology[:,0],dtype=int) >= 1:
-            return 0.0
-        else:
-            #Start looping the topology
-            distance:float = 0.0
-            for ii in range(1,self.nelx):
-                if np.sum(assoc_topology[:,ii],dtype=int) >= 1:
-                    distance = float(ii)
-                    break
+        if self.continuity_check_mode == "continuous":
+            import utils.lc as lame_curves
+
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
+            lcs: List[lame_curves.LameCurveConfig] = lame_curves.construct_lame_configs(self.list_of_MMC, 
+                                                                                        self.symmetry_condition_imposed, 
+                                                                                        self.nely)
+
+            d_yaxis = min(
+                lame_curves.solve_distance_to_bounded_yaxis(lc, yaxis_bounds=(1/2, self.nely-1/2))[1] 
+                for lc in lcs
+            )
             
-            return distance
+            ### NOTE: THIS NOTATION WAS MODIFIED
+            response_yaxis = d_yaxis if (d_yaxis > 1/2) else 0.
+            return response_yaxis
+
+        elif self.continuity_check_mode == "discrete":
+            
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
+            from utils.lame_curves import geo_from_binary_image
+            from shapely.geometry import MultiPolygon,  LineString
+
+            ### EXTRACT THE geometry 
+            geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
+        
+            line: LineString = LineString([(0,0), (0,self.nely)])
+            return geo.distance(line)
+        else:
+
+            # Get a copy of the associated topology
+            assoc_topology:np.ndarray = self._topo.return_floating_topology()
+
+            # Check there is at least one active element at the leftmost 
+            
+            # Given the problem is the cantilever beam, the inspection is based
+            # on checking at least the left-most elements of the topology is one
+            if np.sum(assoc_topology[:,0],dtype=int) >= 1:
+                return 0.0
+            else:
+                #Start looping the topology
+                distance:float = 0.0
+                for ii in range(1,self.nelx):
+                    if np.sum(assoc_topology[:,ii],dtype=int) >= 1:
+                        distance = float(ii)
+                        break
+                
+                return distance
+        
         
     
     
@@ -1229,49 +1263,157 @@ class Design:
             return min(distances)
             
    
-        
-        # Get a copy of the associated topology
-        assoc_topology:np.ndarray = self._topo.return_floating_topology()
-        
-        # Given the problem is the cantilever beam, the inspection is based
-        # on checking at least there is material in contact with the imposed
+        if self.continuity_check_mode == "continuous":
 
-        # Get the 
-        
-        # Case for even number of elements in y-direction
-        if self.nelx % 2 == 0:
-            # Get the indices of all the points of interest
-            interest_points = [(int(self.nely/2)-1,self.nelx-1),
-                                (int(self.nely/2),self.nelx-1)]
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
+            import utils.lc as lame_curves
+
+            lcs: List[lame_curves.LameCurveConfig] = lame_curves.construct_lame_configs(self.list_of_MMC, 
+                                                                                        self.symmetry_condition_imposed, 
+                                                                                        self.nely)
             
-            dist_arr = [smallest_distance(assoc_topology, iTuple) for iTuple in interest_points]
+            pt: lame_curves.Point = lame_curves.Point(self.nelx, self.nely/2)
 
-            # Return the minimum distance
-            return min(dist_arr)
+            d_pt = min(
+                lame_curves.solve_distance_to_point(lc, pt)[1] 
+                for lc in lcs
+            )
+
+            reponse_pt = d_pt if (d_pt > 1/2) else 0.
+            return reponse_pt
         
-        # Case for odd number of elements in y-direction
+
+        elif self.continuity_check_mode == "discrete":
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
+            from utils.lame_curves import geo_from_binary_image
+            from shapely.geometry import MultiPolygon, Point
+
+
+            ### EXTRACT THE geometry
+            geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
+
+            pt: Point = Point(self.nelx, self.nely/2)
+            return geo.distance(pt)
+
         else:
-            if ((assoc_topology[np.floor(self.nely/2)-1,self.nelx-1]==1)
-            or (assoc_topology[np.floor(self.nely/2),self.nelx-1]==1)
-            or (assoc_topology[np.floor(self.nely/2)+1,self.nelx-1])):
-                return True
+            # Get a copy of the associated topology
+            assoc_topology:np.ndarray = self._topo.return_floating_topology()
+            
+            # Given the problem is the cantilever beam, the inspection is based
+            # on checking at least there is material in contact with the imposed 
+            
+            # Case for even number of elements in y-direction
+            if self.nelx % 2 == 0:
+                # Get the indices of all the points of interest
+                interest_points = [(int(self.nely/2)-1,self.nelx-1),
+                                    (int(self.nely/2),self.nelx-1)]
+                
+                dist_arr = [smallest_distance(assoc_topology, iTuple) for iTuple in interest_points]
+
+                # Return the minimum distance
+                return min(dist_arr)
+            
+            # Case for odd number of elements in y-direction
             else:
-                return False
+                if ((assoc_topology[np.floor(self.nely/2)-1,self.nelx-1]==1)
+                or (assoc_topology[np.floor(self.nely/2),self.nelx-1]==1)
+                or (assoc_topology[np.floor(self.nely/2)+1,self.nelx-1])):
+                    return True
+                else:
+                    return False
     
-    def identify_number_of_disjoint_level_sets(self)->int:
+    def continuity_check_compliance(self)->int:
         """
         This function computes the number of disjoint structures or level sets.
         The method is the burning sites, which calls iteratively adjoint material 
         elements.
         """
+        if self.continuity_check_mode == "continuous":
 
-        # Get the topology
-        topo:Topology = self.topology
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
 
-        # Pass it to the function (Don't return the array with bodies)
-        numBodies, _ = compute_number_of_joined_bodies_2(topo,self.Emin,self.E0)
+            from utils.lame_curves import construct_geometry
+            from shapely.geometry import MultiPolygon, Point, LineString
+            from scipy.sparse.csgraph import minimum_spanning_tree
 
-        return numBodies
+            geo: MultiPolygon = construct_geometry(self.list_of_MMC, 
+                                                   self.symmetry_condition_imposed, 
+                                                   self.nelx, 
+                                                   self.nely)
+
+            components = list(geo.geoms)
+
+            n = len(components)
+            D = np.zeros((n,n))
+            for i in range(n):
+                for j in range(i) :
+                        d = components[i].distance(components[j])
+                        # making sure the MST understands there is an edge, for 0 it thinks it's not connected,
+                        # also if the values get too low (<1e-8) this can happen
+                        D[i,j] = D[j,i] = d if (d > 1e-6) else -1
+
+            # this does not perform MST since it does not overwrite D (first its converted to sparse, it overwrites that instance)
+            # TODO : make a boolean for this to activate or not
+            minimum_spanning_tree(D, overwrite=True).toarray()
+            D[D < 1/2] = 0
+            d_MST = D.sum()
+
+            pt: Point = Point(self.nelx, self.nely/2)
+            line: LineString = LineString([(0,1/2), (0,self.nely-1/2)])
+
+            if (d_pt := geo.distance(pt)) > 1/2 : d_MST += d_pt
+            if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
+            
+            response_disc = d_MST
+            return response_disc
+        
+
+        elif self.continuity_check_mode == "discrete":
+
+            ### NOTE: JELLE WESTRA'S THESIS INJECTION
+            ### IMPORT THE LIBRARIES
+            from utils.lame_curves import construct_geometry, geo_from_binary_image
+            from shapely.geometry import MultiPolygon, Point, LineString
+            from scipy.sparse.csgraph import minimum_spanning_tree
+
+            geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
+
+            components = list(geo.geoms)
+
+            n = len(components)
+            D = np.zeros((n,n))
+            for i in range(n):
+                for j in range(i) :
+                        d = components[i].distance(components[j])
+                        # making sure the MST understands there is an edge, for 0 it thinks it's not connected,
+                        # also if the values get too low (<1e-8) this can happen
+                        D[i,j] = D[j,i] = d if (d > 1e-6) else -1
+            # this does not perform MST since it does not overwrite D (first its converted to sparse, it overwrites that instance)
+            # TODO : make a boolean for this to activate or not
+            minimum_spanning_tree(D, overwrite=True).toarray()
+            # D = minimum_spanning_tree(D).toarray()
+            D[D < 1/2] = 0
+            d_MST = D.sum()
+
+            pt: Point = Point(self.nelx, self.nely/2)
+            line: LineString = LineString([(0,1/2), (0,self.nely-1/2)])
+
+            if (d_pt := geo.distance(pt)) > 1/2 : d_MST += d_pt
+            if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
+            
+            return d_MST
+        
+        else:
+            # Get the topology
+            topo:Topology = self.topology
+
+            # Pass it to the function (Don't return the array with bodies)
+            numBodies, _ = compute_number_of_joined_bodies_2(topo,self.Emin,self.E0)
+
+            return numBodies
     
 
     def identify_natural_constraints_violation(self)->List[bool]:
@@ -1285,7 +1427,7 @@ class Design:
         """
 
         # Generate a zeros array
-        constraints_arr = np.zeros(shape=(3,),dtype=bool)
+        constraints_arr = np.zeros(shape=(3,),dtype=float)
 
         constraints_arr[0] = self.dirichlet_boundary_conditions_compliance()
         constraints_arr[1] = self.neumann_boundary_conditions_compliance()
@@ -1294,7 +1436,7 @@ class Design:
         # must be equal to 1. This condition is to avoid the generation of "floating" beams
         # which may not badly condition the stiffness matrix because of the "Ersatz material" formulation,
         # yet for practical reasons this leads to physical unfeasibility.
-        constraints_arr[2] = self.identify_number_of_disjoint_level_sets() == 1
+        constraints_arr[2] = self.continuity_check_compliance()
 
         return constraints_arr
     

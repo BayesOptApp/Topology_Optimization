@@ -26,7 +26,7 @@ from copy import copy, deepcopy
 from dataclasses import dataclass
 
 # Import Typing library
-from typing import List
+from typing import List, Tuple, Union, Optional
 
 # Import the MMC Library
 from geometry_parameterizations.MMC import MMC
@@ -39,9 +39,9 @@ import ioh
 from ioh.iohcpp import RealConstraint
 
 # Import the Initialization
-from Initialization import prepare_FEA
+from utils.Initialization import prepare_FEA
 
-from Design_LP import Design_LP, OPT_MODES
+from Design_LP import Design_LP, OPT_MODES, CONTINUITY_CHECK_MODES
 from FEA import COST_FUNCTIONS
 
 
@@ -69,6 +69,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  plot_variables:bool= True,
                  cost_function:str = "compliance",
                  run_:int = 0,
+                 continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
                  **kwargs):
         
         r"""
@@ -114,6 +115,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                          add_noise=False, 
                          E0=E0, 
                          Emin=Emin,
+                         continuity_check_mode=continuity_check_mode,
                          **kwargs)
         
         # Append the fractional volume constraint
@@ -131,18 +133,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             optimum=optimum
         )
 
-        # KE,iK,jK,F,U,freedofs,edofMat = prepare_FEA(nelx=self.nelx,
-        #                                               nely=self.nely,
-        #                                               test_case='cant-beam',
-        #                                               nu=0.3)
-        
-        # self.__problem_dict:dict = {"KE":KE,
-        #                             "iK":iK,
-        #                             "jK":jK,
-        #                             "F":F,
-        #                             "U":U,
-        #                             "freedofs":freedofs,
-        #                             "edofMat":edofMat}
+        # Set the number of actual function evaluations
+        self._n_evals:int = 0
         
         self.__use_sparse_matrices:bool = use_sparse_matrices
         self.__plot_variables:bool = plot_variables
@@ -166,11 +158,11 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                                                         exponent=1.0)
         constr3:RealConstraint = RealConstraint(self.connectivity_condition, name="Connectivity Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  5e2, 
+                                                        weight =  1e5, 
                                                         exponent=1.0)
         constr4:RealConstraint = RealConstraint(self.volume_fraction_cond, name="Volume Fraction Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  1e9, 
+                                                        weight =  1e6, 
                                                         exponent=1.0)
         # This part will automatically initialize the pointers to the constraints
         super(Design_LP,self).add_constraint(constr1)
@@ -184,6 +176,13 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
     
     def add_constraint(self, constraint):
         raise NotImplementedError("This function is restricted for this kind of object")
+    
+    def reset(self)->None:
+        # Call the super-class reset function
+        super(Design_LP,self).reset()
+
+        # Reset the number of evaluations
+        self._n_evals = 0
     
     # Set the constraint functions
     # Start with the Dirichlet Boundary Condition
@@ -259,11 +258,11 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         self.modify_mutable_properties_from_array(x_arr,scaled=True,repair_level=0)
 
 
-        # Compute the number of disjoint bodies of the design
-        resp = float(self.identify_number_of_disjoint_level_sets() == 1)
+        # Compute the connectivity condiction compliance
+        resp = self.continuity_check_compliance()
 
 
-        return 1. - resp
+        return resp
     
     # Now the volume fraction
     def volume_fraction_cond(self,x:np.ndarray):
@@ -322,6 +321,9 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                                              cost_function=self.cost_function,
                                              penalty_factor=0.0,  # This is for not computing the penalty
                                              avoid_computation_for_not_compliance=False)
+        
+        # Update the number of evaluations
+        self._n_evals += 1
 
         return target
     #def enforce_bounds(self, weight, enforced, exponent):
@@ -460,3 +462,11 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             raise AttributeError("The new setting must be an integer and gerater than 0.")
         else:
             self.__run = new_run
+
+    @property
+    def n_evals(self)->int:
+        r"""
+        Return the number of function evaluations-so-far.
+        """
+        return self._n_evals
+    

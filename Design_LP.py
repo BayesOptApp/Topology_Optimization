@@ -26,7 +26,7 @@ from FEA import compute_objective_function
 from dataclasses import dataclass
 
 # Import Typing library
-from typing import List
+from typing import List, Tuple, Union, Optional
 
 # Import the MMC Library
 from geometry_parameterizations.MMC import MMC
@@ -34,7 +34,7 @@ from geometry_parameterizations.MMC import MMC
 # Import the Topology library
 from utils.Topology import Topology
 
-from Design import Design, SCALATION_MODES
+from Design import Design, SCALATION_MODES, CONTINUITY_CHECK_MODES
 
 # Import IOH Real Problem
 import ioh
@@ -76,6 +76,7 @@ class Design_LP(Design):
                  add_noise:bool = False,
                  E0:float = 1.00,
                  Emin:float = 1e-09,
+                 continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
                  **kwargs):
         '''
         Constructor of the class
@@ -113,6 +114,7 @@ class Design_LP(Design):
                          symmetry_condition=symmetry_condition,
                          initialise_zero=initialise_zero,
                          add_noise=add_noise,
+                         continuity_check_mode=continuity_check_mode,
                          **kwargs)
         
 
@@ -464,9 +466,9 @@ class Design_LP(Design):
                     new_LM_array[2] = 1.0
             
             # Assign the values of the array
-            self.VR = new_LM_array[0]
-            self.V3_1 = new_LM_array[1]
-            self.V3_2 = new_LM_array[2]
+            self.__VR = new_LM_array[0]
+            self.__V3_1 = new_LM_array[1]
+            self.__V3_2 = new_LM_array[2]
     
     def modify_mutable_properties_from_array(self,new_properties_array:np.ndarray,
                                              scaled:bool,repair_level:int=2)->None:
