@@ -1091,7 +1091,11 @@ class Design:
             if repair_level ==1 or repair_level == 2:
                 curMMC.repair_MMC(self.__nelx,self.__nely,repair_level=repair_level,
                                   min_thickness=min_thickness,tol=tol)
-            
+        
+        # +++++
+        #for ii in range(len(self.__list_of_MMC)):
+        #    print(self.__list_of_MMC[ii])
+        # +++++
             
     
     def modify_mutable_properties_from_array(self,new_properties_array:np.ndarray,
@@ -1181,7 +1185,7 @@ class Design:
             
             ### NOTE: THIS NOTATION WAS MODIFIED
             response_yaxis = d_yaxis if (d_yaxis > 1/2) else 0.
-            return response_yaxis
+            return response_yaxis if not np.isnan(response_yaxis) else np.sqrt(self.nelx**2 + self.nely**2)
 
         elif self.continuity_check_mode == "discrete":
             
@@ -1194,7 +1198,8 @@ class Design:
             geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
         
             line: LineString = LineString([(0,0), (0,self.nely)])
-            return geo.distance(line)
+            dist = geo.distance(line)
+            return dist if not np.isnan(dist) else np.sqrt(self.nelx**2 + self.nely**2)
         else:
 
             # Get a copy of the associated topology
@@ -1281,7 +1286,7 @@ class Design:
             )
 
             reponse_pt = d_pt if (d_pt > 1/2) else 0.
-            return reponse_pt
+            return reponse_pt if not np.isnan(reponse_pt) else np.sqrt(self.nelx**2 + self.nely**2)
         
 
         elif self.continuity_check_mode == "discrete":
@@ -1295,7 +1300,8 @@ class Design:
             geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
 
             pt: Point = Point(self.nelx, self.nely/2)
-            return geo.distance(pt)
+            dist = geo.distance(pt)
+            return dist if not np.isnan(dist) else np.sqrt(self.nelx**2 + self.nely**2)
 
         else:
             # Get a copy of the associated topology
@@ -1368,7 +1374,7 @@ class Design:
             if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
             
             response_disc = d_MST
-            return response_disc
+            return response_disc if not np.isnan(response_disc) else np.sqrt(self.nelx**2 + self.nely**2)
         
 
         elif self.continuity_check_mode == "discrete":
@@ -1404,7 +1410,7 @@ class Design:
             if (d_pt := geo.distance(pt)) > 1/2 : d_MST += d_pt
             if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
             
-            return d_MST
+            return d_MST if not np.isnan(d_MST) else np.sqrt(self.nelx**2 + self.nely**2)
         
         else:
             # Get the topology
@@ -1442,6 +1448,12 @@ class Design:
     
     def volume_constrain_violation(self,volfrac_:float)->float:
         return max(self.compute_volume_ratio() - volfrac_,0)
+    
+    def compute_actual_volume_excess(self, volfrac_)->float:
+        """
+        This function computes the actual volume excess of the design
+        """
+        return self.compute_volume_ratio() - volfrac_
     
 
 

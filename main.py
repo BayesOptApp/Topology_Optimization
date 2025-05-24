@@ -29,8 +29,8 @@ except:
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =988989
-RUN_E:int = 98
+RANDOM_SEED:int =988956
+RUN_E:int = 1
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -117,11 +117,11 @@ To run unbounded and/or search algorithms, we recommend to set the constraints 1
 the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
 """
 # Convert the first two constraints to a not
-ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
-ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
+ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
+ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 
 # Convert connectivity to a Hard constraint
-ioh_prob.convert_defined_constraint_to_type(2,4) # Connectivity
+ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume

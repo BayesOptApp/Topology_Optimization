@@ -27,6 +27,11 @@ KEY_NAMES = ("VR","V3_1","V3_2")
 # Default scalation modes
 SCALATION_MODES = ("Bujny","unitary")
 
+
+# Minimal values for thickness and length
+MIN_THICKNESS:float = 0.01
+MIN_LENGTH:float = 0.01
+
 #------------------------------------------------------------------------------------------------------
 #-----------------------------------------HELPER FUNCTIONS---------------------------------------------
 #------------------------------------------------------------------------------------------------------
@@ -175,14 +180,14 @@ class MMC:
         return self.__length
     
     def get_scaled_length(self,length_ref:float)->float:
-        return self.__length/length_ref
+        return (self.__length-MIN_LENGTH)/(length_ref-MIN_LENGTH)
     
     @property
     def thickness(self)->float:
         return self.__thickness
     
     def get_scaled_thickness(self,thickness_ref:float)->float:
-        return self.__thickness/thickness_ref
+        return (self.__thickness-MIN_THICKNESS)/(thickness_ref-MIN_THICKNESS)
     
     
     """
@@ -253,7 +258,7 @@ class MMC:
 
     def change_length_from_scaled_value(self,new_scaled_length:float,
                                           length_ref:float)->None:
-        self.__length = new_scaled_length*length_ref
+        self.__length = new_scaled_length*(length_ref-MIN_LENGTH) + MIN_LENGTH
     
     @thickness.setter
     def thickness(self, new_thickness:float)->None:
@@ -262,7 +267,8 @@ class MMC:
 
     def change_thickness_from_scaled_value(self,new_scaled_thickness:float,
                                           thickness_ref:float)->None:
-        self.__thickness = new_scaled_thickness*thickness_ref
+        
+        self.__thickness = new_scaled_thickness*(thickness_ref-MIN_THICKNESS) + MIN_THICKNESS
         
     
     def change_parameters(self,**kwargs)->None:

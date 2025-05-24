@@ -13,6 +13,7 @@ __authors__ = ['Elena Raponi', 'Ivan Olarte Rodriguez']
 # import usual Python libraries
 import numpy as np
 from scipy import sparse
+from torch import Tensor
 import math
 
 # import the copy library
@@ -147,22 +148,28 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         # Submit the run
         self.__run:int = run_
 
+         # Compute the minimal possible volume fraction penalty
+        min_vol_frac_penalty = 1/self.nelx/self.nely
+
+        # Set the penalty factor
+        weight_volume_penalty_factor:float = 0.05/min_vol_frac_penalty
+
         # Register the different constraints
         constr1:RealConstraint = RealConstraint(self.dirichlet_boundary_condition, name="Dirichlet Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  1e13, 
+                                                        weight =  5, 
                                                         exponent=1.0)
         constr2:RealConstraint = RealConstraint(self.neumann_boundary_condition, name="Neumann Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  1e13, 
+                                                        weight =  5, 
                                                         exponent=1.0)
         constr3:RealConstraint = RealConstraint(self.connectivity_condition, name="Connectivity Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  1e5, 
+                                                        weight =  5, 
                                                         exponent=1.0)
         constr4:RealConstraint = RealConstraint(self.volume_fraction_cond, name="Volume Fraction Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  1e6, 
+                                                        weight =  weight_volume_penalty_factor, 
                                                         exponent=1.0)
         # This part will automatically initialize the pointers to the constraints
         super(Design_LP,self).add_constraint(constr1)
@@ -290,6 +297,33 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         
         return resp
     
+    def compute_actual_volume_excess(self,x:np.ndarray)->float:
+        """
+        This function computes the actual volume excess of the design
+        given the current design.
+
+        ---------------
+        Inputs:
+        - x (`np.ndarray`): an array with the input of the problem to evaluate the target.
+
+        ---------------
+        Output:
+        - target (`float`): target value evaluation (raw)
+        """
+
+        # Change the variable dependency
+        x_arr:np.ndarray = np.array(x).ravel()
+        
+        # For the sake of the properties do not perform reparation (just meant
+        # for CMA-ES)
+        self.modify_mutable_properties_from_array(x_arr,scaled=True,repair_level=0)
+
+        # Compute the actual objective
+        target = super().compute_actual_volume_excess(volfrac_=self.volfrac)
+
+        return target
+    
+    
     def evaluate(self, x:np.ndarray)->float:
         """
         This is an overload of the default
@@ -303,6 +337,18 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         Output:
         - target (`float`): target value evaluation (raw)
         """
+
+        # Loop all over the first 3 constraints
+        penalty_array = []
+        for i in range(3):
+            penalty_array.append(self.constraints[i].penalty())
+        
+        pen_sum = sum(penalty_array)
+
+        if pen_sum > 0:
+            # If the penalty is greater than 0, then the target is not computed
+            # and the penalty is returned
+            return pen_sum
         
         # Change the variable dependency
         x_arr:np.ndarray = np.array(x).ravel()
@@ -326,6 +372,24 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         self._n_evals += 1
 
         return target
+    
+    def __call__(self, x:Union[np.ndarray,Tensor])->float:
+
+        #TODO: This is a temporary solution to avoid the error of the ioh
+        # library. The idea is to use the evaluate function from the ioh
+        # library, which is the one that will be used in the future.
+
+        if isinstance(x,Tensor):
+            # Convert the tensor to a numpy array
+            x = x.detach().tolist()
+        elif isinstance(x, np.ndarray):
+            # Convert the numpy array to a list
+            x = x.tolist()
+
+        
+        value = super().__call__(x)
+
+        return value
     #def enforce_bounds(self, weight, enforced, exponent):
     #    return super(Design,self).enforce_bounds(weight, enforced, exponent)
     
@@ -355,8 +419,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         if not isinstance(type_int,int):
             raise ValueError("The input must be an integer")
         
-        if not type_int in (1,2,3,4):
-            raise ValueError("The input is not included in the set {0}".format((1,2,3,4)))
+        if not type_int in (1,2,3,4,5):
+            raise ValueError("The input is not included in the set {0}".format((1,2,3,4,5)))
         
         # Now define the output
         if type_int ==1:
@@ -365,8 +429,10 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             return ioh.ConstraintEnforcement.HIDDEN
         elif type_int ==3:
             return ioh.ConstraintEnforcement.SOFT
-        else:
+        elif type_int ==4:
             return ioh.ConstraintEnforcement.HARD
+        elif type_int ==5:
+            return ioh.ConstraintEnforcement.OVERRIDE
         
 
     def convert_defined_constraint_to_type(self, iddx:int,new_type:int)->None:

@@ -20,18 +20,13 @@ import os
 import ioh
 import numpy as np
 
-try:
-    import cma
-    from cma import fmin2
-except:
-    print("For this to run, install the cma library from Niko Hansen as `pip install cma`")
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
+from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =988989
-RUN_E:int = 98
+RANDOM_SEED:int =11
+RUN_E:int = 1007565
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -66,14 +61,14 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=3,
+                                                nmmcsx=4,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0.1, #-0.1,
+                                                V3_1=0, #-0.1,
                                                 V3_2=0, #-0.4,
                                                 plot_variables=True,
                                                 E0= 1.00,
@@ -129,11 +124,11 @@ To run unbounded and/or search algorithms, we recommend to set the constraints 1
 the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
 """
 # Convert the first two constraints to a not
-ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
-ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
+# ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
+# ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 
-# Convert connectivity to a Hard constraint
-ioh_prob.convert_defined_constraint_to_type(2,4) # Connectivity
+# # Convert connectivity to a Hard constraint
+# ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
@@ -143,17 +138,31 @@ ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
 
 # Set the options for cma package `fmin` 
-opts:cma.CMAOptions = {'bounds':[0,1],
-                       'tolfun':1e-6,
-                       'seed':RANDOM_SEED,
-                       'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
-}
+# opts:dict= {'bounds':[0,1],
+#                        'tolfun':1e-6,
+#                        'seed':RANDOM_SEED,
+#                        'maxfevals':10000,
+#                        'CMA_active':False,
+#                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
+#}
+
+
+logger.watch(ioh_prob,"n_evals")
 
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
+algorithm = CMA_ES_Optimizer_Wrapper(ioh_problem=ioh_prob,
+                        sigma0=0.25,
+                        random_seed=RANDOM_SEED)
+
+algorithm(restarts=5,
+          tolfun=1e-6,
+          cma_active=False,
+          max_f_evals=3000,
+          #additional_options=opts,
+          verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
 
 ioh_prob.reset()
 logger.close()
