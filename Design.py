@@ -19,7 +19,11 @@ import math
 from copy import copy, deepcopy
 
 # Import evaluate FEA function
-from FEA import evaluate_FEA, return_element_midpoint_positions, compute_number_of_joined_bodies, compute_number_of_joined_bodies_2
+from FEA import (evaluate_FEA, 
+                 return_element_midpoint_positions, 
+                 compute_number_of_joined_bodies, 
+                 compute_number_of_joined_bodies_2)
+
 from FEA import compute_objective_function
 
 # Import DataClasses
@@ -34,11 +38,12 @@ from geometry_parameterizations.MMC import MMC
 # Import the Topology library
 from utils.Topology import Topology
 
-# Import IOH Real Problem
-import ioh
 
 # Import the Initialization
 from utils.Initialization import prepare_FEA
+
+# Import all the packages from boundary conditions
+from boundary_conditions import PointDirichletBC, PointNeumannBC, LineDirichletBC, LineNeumannBC, BoundaryConditionList
 
 # ----------------------------------------------------------------------------------------------------
 # ---------------------------------------------CONSTANTS----------------------------------------------
@@ -53,13 +58,16 @@ CONTINUITY_CHECK_MODES = ("continuous","discrete")
 # -----------------------------------------------------------------------------------------------------
 # --------------------------------------------CLASS DEFINITION-----------------------------------------
 # -----------------------------------------------------------------------------------------------------
-@dataclass
 class Design:
     '''
     Class which is generated to contain a design for the optimisation procedure
     and its properties
     '''
-    def __init__(self, nmmcsx:int, nmmcsy:int, nelx:int, nely:int,
+    def __init__(self, 
+                 nmmcsx:int, 
+                 nmmcsy:int, 
+                 nelx:int, 
+                 nely:int,
                  symmetry_condition:bool=False,
                  scalation_mode:str = "Bujny",
                  initialise_zero:bool=False,
@@ -67,6 +75,7 @@ class Design:
                  E0:float = 1.00,
                  Emin:float = 1e-09,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
+                 boundary_conditions_list:Optional[BoundaryConditionList]=None,
                  **kwargs):
         '''
         Constructor of the class
@@ -85,7 +94,7 @@ class Design:
             - initialise_zero: Initialise the table of attributes as zeros
             - add_noise: boolean to control if noise is added to default initialisation
             - scalation_mode: Select a scalation mode: Set values for 'Bujny' or 'unitary'
-            - inverted_init: this is to invert the order of the MMC for the default initialisation.
+            - boundary_conditions_list: List of boundary conditions to be applied to the design.
             - **kwargs: keyworded arguments in case the Optimisation mode is set to 'TO+LP'
         '''
         
@@ -137,6 +146,15 @@ class Design:
 
         # Set the linked topology
         self._topo:Topology = Topology(np.zeros((nely,nelx)),E0,Emin)
+
+        # Set the boundary conditions
+        if boundary_conditions_list is None:
+
+            self._boundary_conditions:BoundaryConditionList = BoundaryConditionList(
+                LineDirichletBC((0.0, 0.0), (0.0, 1.0), 0.0),
+                PointNeumannBC()
+
+            )
 
         
         # Proceed with the non-zero initialisation
@@ -850,7 +868,6 @@ class Design:
         else:
             self._zero_valued = zero_valued
 
-    
     @property
     def list_of_MMC(self):
         return copy(self.__list_of_MMC)

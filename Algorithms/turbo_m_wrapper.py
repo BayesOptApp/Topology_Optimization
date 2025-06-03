@@ -261,6 +261,7 @@ class Turbo_M_Wrapper:
                     train_X[i] = self._get_initial_points(n_DoE, random_seed + i + n_loops * self.n_trust_regions)
                     train_Y[i] = torch.tensor([-1*self.eval_objective(x) for x in train_X[i]], **tkwargs).unsqueeze(-1)
 
+                    n_evals += train_X[i].shape[0]
                     self.X_store = torch.cat((self.X_store, train_X[i]), dim=0)
                     self.Y_store = torch.cat((self.Y_store, train_Y[i]), dim=0)
                     self.idx_store = torch.cat((self.idx_store, i * torch.ones((train_X[i].shape[0], 1), dtype=int)))

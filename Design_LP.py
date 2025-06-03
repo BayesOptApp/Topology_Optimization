@@ -19,11 +19,7 @@ import math
 from copy import copy, deepcopy
 
 # Import evaluate FEA function
-from FEA import evaluate_FEA_LP, return_element_midpoint_positions, compute_number_of_joined_bodies, compute_number_of_joined_bodies_2
-from FEA import compute_objective_function
-
-# Import DataClasses
-from dataclasses import dataclass
+from FEA import evaluate_FEA_LP
 
 # Import Typing library
 from typing import List, Tuple, Union, Optional
@@ -31,13 +27,14 @@ from typing import List, Tuple, Union, Optional
 # Import the MMC Library
 from geometry_parameterizations.MMC import MMC
 
-# Import the Topology library
-from utils.Topology import Topology
-
 from Design import Design, SCALATION_MODES, CONTINUITY_CHECK_MODES
 
-# Import IOH Real Problem
-import ioh
+import warnings
+
+
+
+# Import all the packages from boundary conditions
+from boundary_conditions import PointDirichletBC, PointNeumannBC, LineDirichletBC, LineNeumannBC, BoundaryConditionList
 
 # Import the Initialization
 #from Initialization import prepare_FEA
@@ -46,16 +43,13 @@ import ioh
 # ---------------------------------------------CONSTANTS----------------------------------------------
 # ----------------------------------------------------------------------------------------------------
 
-# Names to check for optimisation of Lamination Parameters
-KEY_NAMES = ("VR","V3_1","V3_2")
-
 # Default optimization modes
 OPT_MODES = ('TO','TO+LP','LP')
 
 # -----------------------------------------------------------------------------------------------------
 # --------------------------------------------CLASS DEFINITION-----------------------------------------
 # -----------------------------------------------------------------------------------------------------
-@dataclass
+
 class Design_LP(Design):
     '''
     Class which is generated to contain a design for the optimisation procedure
@@ -66,29 +60,36 @@ class Design_LP(Design):
                  nmmcsy:int, 
                  nelx:int, 
                  nely:int,
-                 VR:float = 0.5, 
-                 V3_1:float = 0.0, 
-                 V3_2:float = 0.0,
+
                  mode:str=OPT_MODES[0],
                  symmetry_condition:bool=False,
                  scalation_mode:str = SCALATION_MODES[0],
                  initialise_zero:bool=False,
                  add_noise:bool = False,
                  E0:float = 1.00,
-                 Emin:float = 1e-09,
+                 Emin:Optional[float] = 1e-09,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
+                 VR:Optional[float] = 0.5,
+                 interpolation_points:Optional[List[Tuple[Union[float,int], Union[float,int]]]] = [(0,0), (1,0.5)], 
+                 V3_List:Optional[List[float]] = [0.5, 0.5],
                  **kwargs):
-        '''
+        r'''
         Constructor of the class
-        Inputs:
+
+
+        Inputs
+        ----------
             - nmmcsx: number of Morphable Moving Components (MMCs) in x-direction
             - nmmcsy: number of Morphable Moving Components (MMCs) in y-direction
             - nelx: number of finite elements in x-direction
             - nely: number of finite elements in y-direction
             - mode: Optimisation mode: 'TO', 'LP' or 'TO+LP'
-            - VR: VR parameter set for Lamination
-            - V3_1: V3_1 parameter set for Lamination
-            - V3_2: V3_2 parameter set for Lamination
+            - VR: Volume Ratio parameter set for Lamination 
+            - interpolation_points: `List[tuple[float, float]]`: Set a list of points to be used for interpolation of 
+                                                             the material. The tuple should contain the
+                                                             normalized coordinates of the points.
+            - V3_List: `List[float]`: Set a list of V3 values to be used for the interpolation of the material. 
+                                      The list should contain the V3 values corresponding to the Interpolation points.
             - symmetry_condition: Impose a symmetry condition on the design on the x-axis.
                                   If the symmetry condition is imposed, only half of the 
                                   supposed MMC's are saved.
@@ -120,12 +121,31 @@ class Design_LP(Design):
 
         # Set the values of the Lamination Parameters     
         self.__VR:float = VR
-        self.__V3_1:float = V3_1
-        self.__V3_2:float = V3_2
 
+        # Check the length of the interpolation points and V3_List is the same
+        if len(interpolation_points) != len(V3_List):
+            raise ValueError("The length of interpolation points and V3_List must be the same.")
+        # Set the interpolation points and V3_List
 
+        assert isinstance(interpolation_points, list), "Interpolation points must be a list of tuples."
+        assert all(isinstance(point, tuple) and len(point) == 2 for point in interpolation_points), \
+            "Each interpolation point must be a tuple of two numeric values (x, y)."
+        assert isinstance(V3_List, list), "V3_List must be a list of floats."
+        assert all(isinstance(v3, (float, int)) for v3 in V3_List), \
+            "Each V3 value in V3_List must be a float or an int."
+        assert all(0 <= point[0] <= 1 and 0 <= point[1] <= 1 for point in interpolation_points), \
+            "Interpolation points must be normalized between 0 and 1."
+        assert all(-1 <= v3 <= 1 for v3 in V3_List), \
+            "V3 values in V3_List must be between -1 and 1."
         
-            
+        # Set the interpolation points and V3_List
+        self.__interpolation_points:List[Tuple[Union[float,int], Union[float,int]]] = interpolation_points
+        self.__V3_List:List[float] = V3_List
+
+
+
+    
+
 
     def return_mutable_properties_in_array(self,scaled:bool=True)->np.ndarray:
 
@@ -259,18 +279,63 @@ class Design_LP(Design):
         elif self.mode == "LP":
             return "Lamination_Parameters Optimization"
         
-    
     @property
     def VR(self)->float:
         return self.__VR
-
-    @property           
-    def V3_1(self)->float:    
-        return self.__V3_1
     
-    @property 
-    def V3_2(self)->float:
-        return self.__V3_2
+    @VR.setter
+    def VR(self,new_VR:float)->None:
+        if isinstance(new_VR,float):
+            if new_VR >= 0.0 and new_VR <= 1.0:
+                self.__VR = new_VR
+            else:
+                raise ValueError("The VR value should be between 0.0 and 1.0")
+        else:
+            raise TypeError("The VR value should be a float")
+
+    # @property           
+    # def V3_1(self)->float:    
+    #     return self.__V3_1
+    
+    # @property 
+    # def V3_2(self)->float:
+    #     return self.__V3_2
+
+    @property
+    def V3_list(self)->List[float]:
+        '''
+        Returns the list of V3 values
+        '''
+
+        return self.__V3_List
+    
+    @V3_list.setter
+    def V3_list(self,new_V3_list:List[float,int])->None:
+        '''
+        Sets the list of V3 values
+        '''
+        if isinstance(new_V3_list,list):
+            # Check if the list is a list of floats or ints
+            if all(isinstance(x, (float, int)) for x in new_V3_list):
+
+                #Check all the values are between -1 and 1
+                if not all(-1 <= x <= 1 for x in new_V3_list):
+                    raise ValueError("All V3 values should be between -1 and 1")
+                # Check if the list is empty
+                if len(new_V3_list) == 0:
+                    raise ValueError("The V3_List should not be empty")
+                
+                # Check if the list has the same length as the interpolation points
+                if len(new_V3_list) != len(self.__interpolation_points):
+                    raise ValueError("The V3_List should have the same length as the interpolation points")
+                self.__V3_List = [float(x) for x in new_V3_list]
+
+                
+            else:
+                raise TypeError("The V3_List should be a list of floats or ints")
+        else:
+            raise TypeError("The V3_List should be a list of floats")
+    
     
     def get_lamination_parameters(self)->np.ndarray:
         return np.array([self.__VR, self.__V3_1,self.__V3_2 ])

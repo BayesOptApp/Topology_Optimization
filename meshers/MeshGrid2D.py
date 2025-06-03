@@ -16,7 +16,7 @@ import math
 MeshGrid Class Definition
 '''
 class MeshGrid2D:
-    '''
+    r'''
     Manages the Grid Properties of the mesh. To construct the object,
     the length and height of the beam shall be specified as well as the
     height and length of the element. It is assumed the element length and

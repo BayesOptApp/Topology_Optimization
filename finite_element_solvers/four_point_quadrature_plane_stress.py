@@ -307,8 +307,6 @@ def retrieve_Strain_Stress(NN:int,NN_l:int,NN_h:int,E:np.ndarray,
     
     return epsxxN, epsyyN, epsxyN, epsxxE, epsyyE, epsxyE, sigxxN, sigyyN, sigxyN, vonMisesN, sigxxE, sigyyE, sigxyE, vonMisesE
 
-
-
 class Mesh:
     r'''
     Mesh Class definition
