@@ -140,13 +140,49 @@ def solve_distance_to_yaxis(lc: LameCurveConfig, n_samples: int=100) -> Tuple[fl
     return (t[d.argmin()], d.min()) if d.min() > 0 else (float('nan'), 0)
 
 
-def solve_distance_to_bounded_yaxis(lc: LameCurveConfig, yaxis_bounds=(0,5), n_samples: int=100) -> Tuple[float, float] :
+def solve_distance_to_bounded_yaxis(lc: LameCurveConfig, 
+                                    yaxis_bounds=(0,5), 
+                                    n_samples: int=100) -> Tuple[float, float] :
     # TODO : use some guarantees like if shape is far outside the bounds
     (t, d) = solve_distance_to_yaxis(lc)
     yaxis_pt = Point(x=0, y=compute_curve(lc, t)[0,1])
     if (yaxis_bounds[0] < yaxis_pt.y < yaxis_bounds[1]) :
         return (t, d)
     return solve_distance_to_point(lc, Point(0, yaxis_bounds[0] if yaxis_pt.y < yaxis_bounds[0] else yaxis_bounds[1]))
+
+def solve_distance_to_line(
+    lc: LameCurveConfig,
+    line_point: Tuple[float, float],
+    line_dir: Tuple[float, float],
+    n_samples: int = 100
+) -> Tuple[float, float]:
+    """
+    Computes the minimum distance from a Lame curve to a line.
+
+    Args:
+        lc: The LameCurveConfig.
+        line_point: A point on the line (x0, y0).
+        line_dir: A direction vector for the line (dx, dy).
+        n_samples: Number of parameter samples for the Lame curve.
+
+    Returns:
+        Tuple of (t_min, min_distance), where `t_min` is the curve parameter
+        at which the distance is minimized, and `min_distance` is the distance.
+    """
+    x0, y0 = line_point
+    dx, dy = line_dir
+    t = np.linspace(0, 2*np.pi, n_samples)
+    curve_pts = compute_curve(lc, t)  # shape (n_samples, 2)
+
+    # Project each point to the line and compute the perpendicular distance
+    line_unit = np.array([dx, dy]) / np.hypot(dx, dy)
+    vecs = curve_pts - np.array([x0, y0])
+    proj_lengths = vecs @ line_unit
+    proj_pts = np.outer(proj_lengths, line_unit) + np.array([x0, y0])
+    distances = np.linalg.norm(curve_pts - proj_pts, axis=1)
+
+    i_min = np.argmin(distances)
+    return t[i_min], distances[i_min]
 
 
 def distance_between_curves(
@@ -165,7 +201,8 @@ def bounds_quadrants(t) :
     return np.c_[center-np.pi/2, center+np.pi/2]
 
 
-def bounds_simple(t) : return np.c_[t - np.pi/2, t + np.pi/2]
+def bounds_simple(t) : 
+    return np.c_[t - np.pi/2, t + np.pi/2]
 
 
 def solve_distance_between_curves(

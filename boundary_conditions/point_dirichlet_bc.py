@@ -34,28 +34,31 @@ class PointDirichletBC(AbstractBoundaryCondition):
     
     @blocked_dof.setter
     def blocked_dof(self, value: Union[int, Tuple[int, ...]]):
-        r"""
+        """
         Set the blocked degrees of freedom at the point.
 
         Args:
-            - value (Union[int, Tuple[int, ...]]): The new blocked degree(s) of freedom.
-                                                   Both the tuple and int must be either 1 or 2,
-                                                    representing the x and y directions respectively.
-            
+            value (int or tuple of int): Degree(s) of freedom to block.
+                                        Use 1 for x-direction, 2 for y-direction.
+                                        Accepts a single int or a tuple with up to two values.
         """
-        
+        allowed_dofs = (1, 2)
+
         if isinstance(value, int):
-            if value not in (1, 2):
-                raise ValueError("Blocked dof must be either 1 (x-direction) or 2 (y-direction).")
-            self._blocked_dof = tuple(value)
+            value = (value,)
         elif isinstance(value, tuple):
-            if not all(dof in (1, 2) for dof in value):
-                raise ValueError("Blocked dof must be a tuple containing either 1 (x-direction) or 2 (y-direction).")
-            if len(value) > 2:
-                raise ValueError("Blocked dof tuple can only contain up to two elements (1 for x, 2 for y).")
-            self._blocked_dof = value
+            if not all(isinstance(dof, int) for dof in value):
+                raise TypeError("All elements in the tuple must be integers.")
         else:
-            raise TypeError("Blocked dof must be an int or a tuple of ints (1 or 2).")
+            raise TypeError("Blocked dof must be an int or a tuple of ints.")
+
+        if not set(value).issubset(allowed_dofs):
+            raise ValueError("Allowed values are 1 (x-direction) and 2 (y-direction) only.")
+
+        if len(value) > 2:
+            raise ValueError("Blocked dof tuple can contain at most two elements.")
+
+        self._blocked_dof = tuple(sorted(set(value)))
         
     # def apply(self, system):
     #     """

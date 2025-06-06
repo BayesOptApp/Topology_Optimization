@@ -60,7 +60,6 @@ class Design_LP(Design):
                  nmmcsy:int, 
                  nelx:int, 
                  nely:int,
-
                  mode:str=OPT_MODES[0],
                  symmetry_condition:bool=False,
                  scalation_mode:str = SCALATION_MODES[0],
@@ -72,6 +71,7 @@ class Design_LP(Design):
                  VR:Optional[float] = 0.5,
                  interpolation_points:Optional[List[Tuple[Union[float,int], Union[float,int]]]] = [(0,0), (1,0.5)], 
                  V3_List:Optional[List[float]] = [0.5, 0.5],
+                 boundary_conditions_list:Optional[BoundaryConditionList] = None,
                  **kwargs):
         r'''
         Constructor of the class
@@ -93,7 +93,8 @@ class Design_LP(Design):
             - symmetry_condition: Impose a symmetry condition on the design on the x-axis.
                                   If the symmetry condition is imposed, only half of the 
                                   supposed MMC's are saved.
-            - initialise_zero: Initialise the table of attributes as zeros
+            - initialise_zero: Initialise the table of attributes as zeros.
+            - boundary_conditions_list: List of boundary conditions to be applied to the design.
             - add_noise: boolean to control if noise is added to default initialisation
             - scalation_mode: Select a scalation mode: Set values for 'Bujny' or 'unitary'
             - inverted_init: this is to invert the order of the MMC for the default initialisation.
@@ -116,6 +117,7 @@ class Design_LP(Design):
                          initialise_zero=initialise_zero,
                          add_noise=add_noise,
                          continuity_check_mode=continuity_check_mode,
+                         boundary_conditions_list=boundary_conditions_list,
                          **kwargs)
         
 
@@ -143,10 +145,6 @@ class Design_LP(Design):
         self.__V3_List:List[float] = V3_List
 
 
-
-    
-
-
     def return_mutable_properties_in_array(self,scaled:bool=True)->np.ndarray:
 
         '''
@@ -165,7 +163,7 @@ class Design_LP(Design):
                 compl_array = np.array([]).reshape((1,-1))
             
 
-            lam_params:np.ndarray =  self.get_scaled_lamination_parameters().reshape((1,3))
+            lam_params:np.ndarray =  self.get_scaled_lamination_parameters().reshape((1,-1))
 
             if self.mode.find("LP") !=-1:
                 compl_array = np.hstack((compl_array,lam_params))
@@ -180,7 +178,7 @@ class Design_LP(Design):
             else:
                 compl_array:np.ndarray = np.array([]).reshape((1,-1))
 
-            lam_params:np.ndarray =  self.get_lamination_parameters().reshape((1,3))   
+            lam_params:np.ndarray =  self.get_lamination_parameters().reshape((1,-1))   
             if self.mode.find("LP") !=-1:
                 compl_array:np.ndarray = np.hstack((compl_array,lam_params))
             
@@ -230,7 +228,7 @@ class Design_LP(Design):
         TO_mat:np.ndarray = self._topo.return_floating_topology()
 
         # Compute the cost of the Design
-        cost:float = evaluate_FEA_LP(x=np.array([self.VR,self.V3_1,self.V3_2]),
+        cost:float = evaluate_FEA_LP(x=np.array([self.VR,self.V3_list[0],self.V3_list[1]]),
                                     TO_mat=TO_mat,
                                     iterr = iterr,
                                     sample = sample,
@@ -242,6 +240,7 @@ class Design_LP(Design):
                                     symmetry_cond=self.symmetry_condition_imposed,
                                     cost_function=cost_function,
                                     penalty_factor=penalty_factor,
+                                    boundary_conditions=self.boundary_conditions_list,
                                     mode=self.mode)
             
         # Update the cost
@@ -310,7 +309,7 @@ class Design_LP(Design):
         return self.__V3_List
     
     @V3_list.setter
-    def V3_list(self,new_V3_list:List[float,int])->None:
+    def V3_list(self,new_V3_list:List[Union[float,int]])->None:
         '''
         Sets the list of V3 values
         '''
@@ -326,8 +325,19 @@ class Design_LP(Design):
                     raise ValueError("The V3_List should not be empty")
                 
                 # Check if the list has the same length as the interpolation points
-                if len(new_V3_list) != len(self.__interpolation_points):
-                    raise ValueError("The V3_List should have the same length as the interpolation points")
+                if len(new_V3_list) < len(self.__interpolation_points):
+                    warnings.warn("The length of the V3_List is less thant the length of the interpolation points." \
+                                  "Adding zeros to the end of the list to match the length of the interpolation points.", UserWarning)
+                    
+                    # Make the new_V3_list the same length as the interpolation points by adding zeros
+                    new_V3_list = new_V3_list + [0.0] * (len(self.__interpolation_points) - len(new_V3_list))
+                
+                elif len(new_V3_list) > len(self.__interpolation_points):
+                    warnings.warn("The length of the V3_List is greater than the length of the interpolation points." \
+                                  "Truncating the list to match the length of the interpolation points.", UserWarning)
+                    # Truncate the new_V3_list to the length of the interpolation points
+                    new_V3_list = new_V3_list[:len(self.__interpolation_points)]
+                    
                 self.__V3_List = [float(x) for x in new_V3_list]
 
                 
@@ -336,12 +346,75 @@ class Design_LP(Design):
         else:
             raise TypeError("The V3_List should be a list of floats")
     
+    @property
+    def interpolation_points(self)->List[Tuple[Union[float,int], Union[float,int]]]:
+        '''
+        Returns the list of interpolation points
+        '''
+        return self.__interpolation_points
+    
+    @interpolation_points.setter
+    def interpolation_points(self,new_interpolation_points:List[Tuple[Union[float,int], Union[float,int]]])->None:
+        '''
+        Sets the list of interpolation points
+        '''
+        if isinstance(new_interpolation_points,list):
+            # Check if the list is a list of tuples
+            if all(isinstance(x, tuple) and len(x) == 2 for x in new_interpolation_points):
+
+                # Check the entries of the tuples are floats or ints between 0 and 1
+                if not all(isinstance(x[0], (float, int)) and isinstance(x[1], (float, int)) and
+                            0 <= x[0] <= 1 and 0 <= x[1] <= 1 for x in new_interpolation_points):
+                      raise ValueError("All interpolation points should be tuples of two numeric values (x, y) between 0 and 1")
+                
+
+                # Check if the list is empty
+                if len(new_interpolation_points) == 0:
+                    raise ValueError("The interpolation points should not be empty")
+
+                # Check if the list has the same length as the V3_List
+                if len(new_interpolation_points) < len(self.__V3_List):
+                    warnings.warn("The length of the V3_List does not match the length of the interpolation points. "
+                                  "For optimization purposes, it is recommended to keep the same length.")
+                    
+                    # Make the V3_List the same length as the interpolation points by trimming the V3_List
+                    self.__V3_List = self.__V3_List[:len(new_interpolation_points)]
+                elif len(new_interpolation_points) > len(self.__V3_List):
+                    warnings.warn("The length of the interpolation points is greater than the length of the V3_List. "
+                                  "Adding zeros to the end of the V3_List to match the length of the interpolation points.", UserWarning)
+                    # Make the new_V3_List the same length as the interpolation points by adding zeros
+                    self.__V3_List = self.__V3_List + [0.0] * (len(new_interpolation_points) - len(self.__V3_List))
+
+                self.__interpolation_points = [tuple(float(x) for x in point) for point in new_interpolation_points]
+
+            else:
+                raise TypeError("The interpolation points should be a list of tuples")
+        else:
+            raise TypeError("The interpolation points should be a list of tuples")
+    
     
     def get_lamination_parameters(self)->np.ndarray:
-        return np.array([self.__VR, self.__V3_1,self.__V3_2 ])
+
+        r'''
+        Returns the Lamination Parameters of the Design
+        Outputs:
+        - Lamination Parameters as a numpy array
+        '''
+
+        return np.asarray([self.VR, self.__V3_List]).ravel()
     
     def get_scaled_lamination_parameters(self)->np.ndarray:
-        return np.array([self.__VR, 0.5*(self.__V3_1+1),0.5*(self.__V3_2+1)])
+        r'''
+        Returns the scaled Lamination Parameters of the Design
+        Outputs:
+        - Scaled Lamination Parameters as a numpy array
+        '''
+
+        VR_scaled:float = self.__VR
+
+        V3_array_scaled:np.ndarray = (np.asarray(self.__V3_List)+1)*0.5
+
+        return np.array([VR_scaled, V3_array_scaled]).ravel()
     
 
     @property
@@ -353,9 +426,13 @@ class Design_LP(Design):
         if self.mode == "TO":
             return len(self.list_of_MMC)*5
         elif self.mode == "TO+LP":
-            return len(self.list_of_MMC)*5+3
+            # NOTE: The +1 is to account for the VR value
+            # and the +len(self.V3_list) is to account for the V3 values
+            return len(self.list_of_MMC)*5 + 1 + len(self.V3_list)
         elif self.mode == "LP":
-            return 3
+            # NOTE: The +1 is to account for the VR value
+            # and the +len(self.V3_list) is to account for the V3 values
+            return 1 + len(self.V3_list)
         else:
             raise AttributeError()
     
@@ -370,7 +447,7 @@ class Design_LP(Design):
 
     def __change_values_of_MMCs_from_array(self, samp_array:np.ndarray, repair_level:int=2, 
                                          tol:float = 0.5, min_thickness:float = 1.0,**kwargs)->None:
-        '''
+        r'''
         Given an array of values (in the same format as the array of properties)
         change the values of each MMC based on the values of the received array
         by parameter
@@ -493,23 +570,22 @@ class Design_LP(Design):
             raise AttributeError("The optimisation mode is just set to topology optimization \n" +
                                  "Therefore the lamination parameters cannot be modified")
         else:
-
-            # Check the score is not nan
-            # if not np.isnan(self.__score_FEA):
-            #     self.__score_FEA = np.nan
             
-            # if type(new_LM_array) != np.ndarray:
-            #     new_LM_array = np.array(new_LM_array)
-            
-            # For safety flatten the array and check if the number of elements is equal to 3
+            # For safety flatten the array and check if the number of elements 
             new_LM_array = new_LM_array.ravel()
 
-            if len(new_LM_array) != 3:
-                raise ValueError("The number of elements of new array shall be equal to 3")
+            if new_LM_array.size != 1 +  len(self.V3_list):
+                raise ValueError(f"The number of elements of new array shall be equal to {1 +  len(self.V3_list)}")
             
             # Modify values if scaled value is used
             if scaled:
-                new_LM_array = [new_LM_array[0],new_LM_array[1]/0.5-1,new_LM_array[2]/0.5-1]
+                # If scaled is chosen, extract the array of scaled values
+                VR_scaled:float = new_LM_array[0]
+
+                V3_scaled:np.ndarray = np.asarray(new_LM_array[1:])/0.5 - 1
+
+                # Assign the values of the array
+                new_LM_array = np.hstack((VR_scaled, V3_scaled)).ravel()
         
             # Apply the "repair" operator
             if new_LM_array[0] < 0.0 or new_LM_array[0] > 1.0:
@@ -518,22 +594,17 @@ class Design_LP(Design):
                 else:
                     new_LM_array[0] = 1.0
             
-            if new_LM_array[1] < -1.0 or new_LM_array[1] > 1.0:
-                if new_LM_array[1] < -1.0:
-                    new_LM_array[1] = -1.0
-                else:
-                    new_LM_array[1] = 1.0
+            for ii in range(1,len(new_LM_array)):
+                if new_LM_array[ii] < -1.0 or new_LM_array[ii] > 1.0:
+                    if new_LM_array[ii] < -1.0:
+                        new_LM_array[ii] = -1.0
+                    else:
+                        new_LM_array[ii] = 1.0
             
-            if new_LM_array[2] < -1.0 or new_LM_array[2] > 1.0:
-                if new_LM_array[2] < -1.0:
-                    new_LM_array[2] = -1.0
-                else:
-                    new_LM_array[2] = 1.0
             
             # Assign the values of the array
-            self.__VR = new_LM_array[0]
-            self.__V3_1 = new_LM_array[1]
-            self.__V3_2 = new_LM_array[2]
+            self.VR = new_LM_array[0]
+            self.V3_list = new_LM_array[1:].tolist()
     
     def modify_mutable_properties_from_array(self,new_properties_array:np.ndarray,
                                              scaled:bool,repair_level:int=2)->None:

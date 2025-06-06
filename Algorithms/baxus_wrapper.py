@@ -133,7 +133,7 @@ class BAxUS_Wrapper:
             bounds = self.bounds
             x = (x + 1) / 2 * (bounds[1] - bounds[0]) + bounds[0]
             # Evaluate the objective function
-            return self.ioh_prob(x.detach().numpy())
+            return self.ioh_prob(x.detach().cpu().numpy())
         else:
             raise ValueError("Unsupported problem type.")
 
@@ -262,7 +262,7 @@ class BAxUS_Wrapper:
         self.Y_baxus = torch.tensor([-self.eval_objective(x) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
         self.Y_store = torch.cat((self.Y_store, self.Y_baxus), dim=0)
         self.C1_store = torch.tensor(
-            [self.ioh_prob.compute_actual_volume_excess(x.detach().numpy()) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
+            [self.ioh_prob.compute_actual_volume_excess(x.detach().cpu().numpy()) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
 
 
 
@@ -316,7 +316,7 @@ class BAxUS_Wrapper:
                 ).unsqueeze(-1)
 
                 C1_next = torch.tensor(
-                    [self.ioh_prob.compute_actual_volume_excess(x.detach().numpy()) for x in X_next_input], dtype=dtype, device=device
+                    [self.ioh_prob.compute_actual_volume_excess(x.detach().cpu().numpy()) for x in X_next_input], dtype=dtype, device=device
                 ).unsqueeze(-1)
 
                 # Update state

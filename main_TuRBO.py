@@ -14,19 +14,22 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
-#from IOH_Wrapper import Design_IOH_Wrapper
+#from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.vanilla_bo_wrapper import VanillaBO
+from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointNeumannBC, PointDirichletBC
+
 ## Global Variables
-RANDOM_SEED:int =568242422
-RUN_E:int = 1007570
+RANDOM_SEED:int =5647
+RUN_E:int = 21
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -58,23 +61,45 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+boundary_conds = BoundaryConditionList()
+# Add Dirichlet Boundary Condition
+#dirichlet_bc = LineDirichletBC(start_point=(0.0, 0.0), end_point=(0.0, 1.0),blocked_dof=(1,2))
+# Add Neumann Boundary Condition
+#neumann_bc = PointNeumannBC(location=(1.0, 0.0),force_vector=(0.0, -0.25/25))
+
+# Add the boundary conditions to the list
+#boundary_conds.append(dirichlet_bc)
+#boundary_conds.append(neumann_bc)
+
+dirichlet_bc_1 = PointDirichletBC(location=(0.0, 0.0), blocked_dof=(1, 2))
+dirichlet_bc_2 = PointDirichletBC(location=(0.0, 1.0), blocked_dof=(1, 2))
+#dirichlet_bc_3 = PointDirichletBC(location=(0.1, 0.5), blocked_dof=1)
+
+neumann_bc = PointNeumannBC(location=(1.0, 0.5), force_vector=(-0.25, 0.0 ))
+# Add the boundary conditions to the list
+boundary_conds.append(dirichlet_bc_1)
+boundary_conds.append(dirichlet_bc_2)
+#boundary_conds.append(dirichlet_bc_3)
+boundary_conds.append(neumann_bc)
+
 # Generate Obj
-ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
-                                                nely=50,                         
+ioh_prob:Design_IOH_Wrapper = Design_IOH_Wrapper(nelx=50,
+                                                nely=100,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=2,
+                                                nmmcsx=5,
                                                 nmmcsy=2,
-                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
-                                                VR=0.5,
+                                                VR=0.4,
                                                 V3_list=[0, 0],
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E,
-                                                continuity_check_mode="discrete")
+                                                continuity_check_mode="discrete",
+                                                boundary_conditions_list=boundary_conds,)
 
 r"""
 The next excerpt of code is just setting the IOH Logger. You may check the IOH Experimenter Wiki to see other ways to Log the corresponding results.
@@ -88,7 +113,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="Vanilla-BO",    # meta-data for the algorithm used to generate these results
+    algorithm_name="TuRBO_1",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -154,10 +179,10 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = VanillaBO(ioh_prob=ioh_prob,
-                         batch_size=1)
+algorithm = Turbo_1_Wrapper(ioh_prob=ioh_prob,
+                         batch_size=4)
 
-algorithm(total_budget=1000,
+algorithm(total_budget=3000,
           random_seed=RANDOM_SEED,
           n_DoE=3*ioh_prob.problem_dimension)
 

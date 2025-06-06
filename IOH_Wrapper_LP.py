@@ -39,6 +39,9 @@ from utils.Topology import Topology
 import ioh
 from ioh.iohcpp import RealConstraint
 
+# Import the Boundary Condition List
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, LineNeumannBC, PointNeumannBC, PointDirichletBC
+
 # Import the Initialization
 from utils.Initialization import prepare_FEA
 
@@ -58,8 +61,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  nelx:int, 
                  nely:int, 
                  VR: float= 0.5, 
-                 V3_1:float = 0, 
-                 V3_2:float = 0,
+                 V3_list:List[float] = [0.0, 0.0],
                  volfrac:float = 0.5,
                  mode:str = OPT_MODES[0], 
                  symmetry_condition:bool = False, 
@@ -71,6 +73,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  cost_function:str = "compliance",
                  run_:int = 0,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
+                 boundary_conditions_list:Optional[BoundaryConditionList]=None,
+                 interpolation_points:Optional[List[Tuple[Union[float,int], Union[float,int]]]] = [(0,0), (1,0.5)], 
                  **kwargs):
         
         r"""
@@ -107,8 +111,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                          nelx=nelx, 
                          nely=nely, 
                          VR=VR, 
-                         V3_1=V3_1, 
-                         V3_2=V3_2, 
+                         V3_List=V3_list, 
                          mode=mode, 
                          symmetry_condition=symmetry_condition, 
                          scalation_mode=scalation_mode, 
@@ -117,6 +120,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                          E0=E0, 
                          Emin=Emin,
                          continuity_check_mode=continuity_check_mode,
+                         boundary_conditions_list=boundary_conditions_list,
+                         interpolation_points=interpolation_points,
                          **kwargs)
         
         # Append the fractional volume constraint

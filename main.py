@@ -15,6 +15,7 @@ Nikolaus Hansen.
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 from IOH_Wrapper import Design_IOH_Wrapper
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointNeumannBC, PointDirichletBC
 import os
 import ioh
 import numpy as np
@@ -29,8 +30,8 @@ except:
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =988957
-RUN_E:int = 5
+RANDOM_SEED:int =1007583
+RUN_E:int = 17
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -55,18 +56,29 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+boundary_conds = BoundaryConditionList()
+# Add Dirichlet Boundary Condition
+dirichlet_bc = LineDirichletBC(start_point=(0.0, 0.0), end_point=(0.0, 1.0),blocked_dof=(1,2))
+# Add Neumann Boundary Condition
+neumann_bc = PointNeumannBC(location=(1.0, 0.0),force_vector=(0.0, -0.25/25))
+
+
+
 # Generate Obj
 ioh_prob:Design_IOH_Wrapper = Design_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 nmmcsx=3,
                                                 nmmcsy=2,
-                                                symmetry_condition=True,
+                                                symmetry_condition=False,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
-                                                run_= RUN_E)
+                                                run_= RUN_E,
+                                                boundary_conditions_list=boundary_conds,
+                                                continuity_check_mode="discrete")
 
 r"""
 The next excerpt of code is just setting the IOH Logger. You may check the IOH Experimenter Wiki to see other ways to Log the corresponding results.
@@ -125,6 +137,8 @@ ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
+
+
 
 
 # Set an initial starting point for CMA-ES

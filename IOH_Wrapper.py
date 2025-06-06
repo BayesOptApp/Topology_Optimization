@@ -38,6 +38,9 @@ from utils.Topology import Topology
 import ioh
 from ioh.iohcpp import RealConstraint
 
+# Import the boundary conditions
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointDirichletBC, LineNeumannBC, PointNeumannBC
+
 # Import the Initialization
 from utils.Initialization import prepare_FEA
 
@@ -66,6 +69,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
                  cost_function:str = "compliance",
                  run_:int = 0,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
+                 boundary_conditions_list:Optional[BoundaryConditionList]=None,
                  **kwargs):
         
         r"""
@@ -105,6 +109,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
                          E0=E0, 
                          Emin=Emin,
                          continuity_check_mode=continuity_check_mode,
+                         boundary_conditions_list=boundary_conditions_list,
                          **kwargs)
         
         # Append the fractional volume constraint

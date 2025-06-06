@@ -25,8 +25,8 @@ import numpy as np
 from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =11
-RUN_E:int = 1007565
+RANDOM_SEED:int =20
+RUN_E:int = 1007579
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -61,19 +61,19 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=4,
-                                                nmmcsy=2,
-                                                mode="TO+LP",
+                                                nmmcsx=5,
+                                                nmmcsy=4,
+                                                mode="TO",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
+                                                V3_list=[0, 0],
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
-                                                run_= RUN_E)
+                                                run_= RUN_E,
+                                                continuity_check_mode="discrete")
 
 r"""
 The next excerpt of code is just setting the IOH Logger. You may check the IOH Experimenter Wiki to see other ways to Log the corresponding results.
@@ -160,7 +160,7 @@ algorithm = CMA_ES_Optimizer_Wrapper(ioh_problem=ioh_prob,
 algorithm(restarts=5,
           tolfun=1e-6,
           cma_active=False,
-          max_f_evals=3000,
+          max_f_evals=1000,
           #additional_options=opts,
           verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
 

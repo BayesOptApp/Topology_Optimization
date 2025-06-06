@@ -25,8 +25,8 @@ import numpy as np
 from Algorithms.baxus_wrapper import BAxUS_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5646334
-RUN_E:int = 1007571
+RANDOM_SEED:int =5646335
+RUN_E:int = 1007573
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -62,7 +62,7 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=3,
+                                                nmmcsx=2,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,

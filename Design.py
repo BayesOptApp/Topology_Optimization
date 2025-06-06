@@ -150,11 +150,17 @@ class Design:
         # Set the boundary conditions
         if boundary_conditions_list is None:
 
-            self._boundary_conditions:BoundaryConditionList = BoundaryConditionList(
-                LineDirichletBC((0.0, 0.0), (0.0, 1.0), 0.0),
-                PointNeumannBC()
+            self._boundary_conditions_list:BoundaryConditionList = BoundaryConditionList()
+            self._boundary_conditions_list.append(LineDirichletBC((0.0, 0.0), (0.0, 1.0), (1, 2)))
+            self._boundary_conditions_list.append(PointNeumannBC((1.0, 0.5), (0.0, -0.25)))  # Neumann BC at the right edge)
+        
+        else:
+            if isinstance(boundary_conditions_list, BoundaryConditionList):
+                self._boundary_conditions_list:BoundaryConditionList = boundary_conditions_list
+            else:
+                raise TypeError("The boundary conditions should be of type BoundaryConditionList")
 
-            )
+
 
         
         # Proceed with the non-zero initialisation
@@ -818,7 +824,8 @@ class Design:
                                     plotVariables=plotVariables,
                                     symmetry_cond=self.symmetry_condition_imposed,
                                     cost_function=cost_function,
-                                    penalty_factor=penalty_factor)
+                                    penalty_factor=penalty_factor,
+                                    boundary_conditions=self.boundary_conditions_list)
             
         # Update the cost
         #self.__score_FEA = cost
@@ -998,6 +1005,27 @@ class Design:
                 raise ValueError("The new scalation_mode is not allowed")
             else:
                 self.__continuity_check_mode = new_mode.strip().lower()
+    
+    @property
+    def boundary_conditions_list(self)->List[BoundaryConditionList]:
+        '''
+        Returns the list of boundary conditions
+        '''
+
+        return self._boundary_conditions_list
+    
+    @boundary_conditions_list.setter
+    def boundary_conditions_list(self,new_boundary_conditions_list:BoundaryConditionList)->None:
+        '''
+        Sets the list of boundary conditions
+
+        Inputs:
+        - new_boundary_conditions_list: List of BoundaryConditionList
+        '''
+        if not isinstance(new_boundary_conditions_list,BoundaryConditionList):
+            raise ValueError("The new boundary conditions should be a list")
+        else:
+            self._boundary_conditions_list = new_boundary_conditions_list
     
 
     
@@ -1209,14 +1237,38 @@ class Design:
             ### NOTE: JELLE WESTRA'S THESIS INJECTION
             ### IMPORT THE LIBRARIES
             from utils.lame_curves import geo_from_binary_image
-            from shapely.geometry import MultiPolygon,  LineString
+            from shapely.geometry import MultiPolygon,  LineString, Point
 
             ### EXTRACT THE geometry 
             geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
+
+            # Loop all over the boundary conditions and define a line to check the distance
+            dist_list: List[float] = []
+            for bc in self.boundary_conditions_list:
+                if isinstance(bc,LineDirichletBC):
+                    start_point:tuple = (bc.start_point)
+                    end_point:tuple = bc.end_point
+
+                    unnorm_start_point:tuple = (start_point[0]*self.nelx,start_point[1]*self.nely)
+                    unnorm_end_point:tuple = (end_point[0]*self.nelx,end_point[1]*self.nely)
+                    iLine: LineString = LineString([unnorm_start_point, unnorm_end_point])
+                    iDist = geo.distance(iLine)
+
+                    # Compute the distance
+                    dist_list.append(iDist if not np.isnan(iDist) else np.sqrt(self.nelx**2 + self.nely**2))
+                
+                elif isinstance(bc,PointDirichletBC):
+                    pp = bc.location
+
+                    pp_unnorm = (pp[0]*self.nelx, pp[1]*self.nely)
+                    iPt = Point(pp_unnorm)
+                    iDist = geo.distance(iPt)
+
+                    # Compute the distance
+                    dist_list.append(iDist if not np.isnan(iDist) else np.sqrt(self.nelx**2 + self.nely**2))
+
         
-            line: LineString = LineString([(0,0), (0,self.nely)])
-            dist = geo.distance(line)
-            return dist if not np.isnan(dist) else np.sqrt(self.nelx**2 + self.nely**2)
+            return sum(dist_list)
         else:
 
             # Get a copy of the associated topology
@@ -1316,9 +1368,21 @@ class Design:
             ### EXTRACT THE geometry
             geo: MultiPolygon = geo_from_binary_image(self.topology > 1/2)
 
-            pt: Point = Point(self.nelx, self.nely/2)
-            dist = geo.distance(pt)
-            return dist if not np.isnan(dist) else np.sqrt(self.nelx**2 + self.nely**2)
+            dist_list: List[float] = []
+            for bc in self.boundary_conditions_list:
+                if isinstance(bc,PointNeumannBC):
+                    pp = bc.location
+
+                    pp_unnorm = (pp[0]*self.nelx, pp[1]*self.nely)
+                    iPt = Point(pp_unnorm)
+                    iDist = geo.distance(iPt)
+
+                    # Compute the distance
+                    dist_list.append(iDist if not np.isnan(iDist) else np.sqrt(self.nelx**2 + self.nely**2))
+
+            #pt: Point = Point(self.nelx, self.nely/2)
+            #dist = geo.distance(pt)
+            return sum(dist_list)
 
         else:
             # Get a copy of the associated topology

@@ -25,5 +25,5 @@ class PenalizedExpectedImprovement(AcquisitionFunction):
         std = posterior.variance.sqrt().clamp_min(1e-9)
         prob_feas = torch.distributions.Normal(0, 1).cdf(-mean / std)
         # Penalized EI
-        penalized_ei = torch.mul(torch.exp(lei), prob_feas.flatten())
+        penalized_ei = torch.mul(lei, prob_feas.flatten())
         return penalized_ei

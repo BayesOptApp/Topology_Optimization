@@ -14,7 +14,7 @@ import math
 from finite_element_solvers.four_point_quadrature_plane_stress_composite import Mesh, CompositeMaterialMesh
 from finite_element_solvers import select_2D_quadrature_solver
 from meshers.MeshGrid2D import MeshGrid2D
-
+from boundary_conditions import BoundaryConditionList, LineNeumannBC, PointNeumannBC, PointDirichletBC, LineDirichletBC
 # Import plotting functions
 from utils.Helper_Plots import plotNodalVariables, plotNodalVariables_pyvista
 from utils.Helper_Plots import plot_LP_Parameters, plot_LP_Parameters_pyvista
@@ -47,8 +47,9 @@ ADDITIONAL (HELPER) FUNCTIONS
 
 def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
                  sample:int,volfrac:float,Emin:float,E0:float,run_:int,
+                 boundary_conditions:BoundaryConditionList,
                  penalty_factor:float=PENALTY_FACTOR_DEFAULT,
-                 plotVariables:bool=False,symmetry_cond:bool=True,
+                 plotVariables:bool=False,
                  sparse_matrices_solver:bool=False,pyvista_plot=True,
                  cost_function:str = COST_FUNCTIONS[0],
                  **kwargs)->float:
@@ -79,7 +80,10 @@ def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
     h:float = TO_mat.shape[0]
     
     # Generate the mesh object
-    mesh:Mesh = Mesh(length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
+    mesh:Mesh = Mesh(boundary_conditions_list=boundary_conditions,
+                     length=l,
+                     height=h,
+                     element_length=ELEMENT_LENGTH_DEFAULT,
                      element_height=ELEMENT_HEIGHT_DEFAULT,
                      sparse_matrices=sparse_matrices_solver)
     
@@ -165,6 +169,7 @@ def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
 
 def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
                  sample:int,volfrac:float,Emin:float,E0:float,run_:int,
+                 boundary_conditions:BoundaryConditionList,
                  penalty_factor:float=PENALTY_FACTOR_DEFAULT,
                  plotVariables:bool=False,symmetry_cond:bool=True,
                  sparse_matrices_solver:bool=False,pyvista_plot=True,
@@ -202,9 +207,10 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
     h:float = TO_mat.shape[0]
     
     # Generate the mesh object
-    mesh:Mesh = CompositeMaterialMesh(length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
-                     element_height=ELEMENT_HEIGHT_DEFAULT,
-                     sparse_matrices=sparse_matrices_solver)
+    mesh:Mesh = CompositeMaterialMesh(boundary_conditions_list=boundary_conditions,
+                                      length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
+                                      element_height=ELEMENT_HEIGHT_DEFAULT,
+                                      sparse_matrices=sparse_matrices_solver)
     
     # Reshape the density matrix into a vector
     #density_vec:np.ndarray = np.rot90(TO_mat).reshape((1,mesh.MeshGrid.nel_total),order='F')
@@ -255,7 +261,7 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
         cost:float = compliance + penalty_factor*max(0.0, np.sum((TO_mat>Emin))-
                                                     mesh.MeshGrid.nelx*mesh.MeshGrid.nely*volfrac)
 
-    if (np.all((np.abs(u_r) < 50)) and plotVariables):
+    if (np.all((np.abs(u_r) < 100)) and plotVariables):
         # Retrieve stresses and strains from the displacements
         list_of_vars = mesh.mesh_retrieve_Strain_Stress(V1_e=V1_e,
                                                         V3_e=V3_e,
@@ -408,7 +414,7 @@ def compute_objective_function(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
                                     mesh.MeshGrid.coordinate_grid[:,2]+u_r[:,1]])
     N_static = N_static.T 
     
-    if (np.all((np.abs(u_r) < 50)) and plotVariables):
+    if (np.all((np.abs(u_r) < 100)) and plotVariables):
         # Retrieve stresses and strains from the displacements
         list_of_vars = mesh.mesh_retrieve_Strain_Stress(V1_e=V1_e,
                                                         V3_e=V3_e,

@@ -25,8 +25,8 @@ import numpy as np
 from Algorithms.vanilla_cbo_wrapper import VanillaCBO
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =568237
-RUN_E:int = 10023
+RANDOM_SEED:int =568238
+RUN_E:int = 1007570
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -64,13 +64,12 @@ ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 #nmmcsx=10,
                                                 nmmcsx=2,
                                                 nmmcsy=2,
-                                                mode="TO",
+                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
+                                                V3_list=[0, 0],
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
@@ -158,7 +157,7 @@ ioh_prob.attach_logger(logger)
 algorithm = VanillaCBO(ioh_prob=ioh_prob,
                          batch_size=1)
 
-algorithm(total_budget=3000,
+algorithm(total_budget=1000,
           random_seed=RANDOM_SEED,
           n_DoE=3*ioh_prob.problem_dimension)
 

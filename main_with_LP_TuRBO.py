@@ -25,8 +25,8 @@ import numpy as np
 from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5642
-RUN_E:int = 1007549
+RANDOM_SEED:int =5644
+RUN_E:int = 1007576
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -58,19 +58,20 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=3,
+                                                nmmcsx=5,
                                                 nmmcsy=2,
-                                                mode="TO",
+                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
+                                                V3_list=[0, 0],
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,

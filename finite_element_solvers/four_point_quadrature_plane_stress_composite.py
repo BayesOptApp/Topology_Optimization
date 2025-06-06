@@ -17,6 +17,7 @@ from meshers.MeshGrid2D import MeshGrid2D
 from typing import Union, List, Tuple, Optional
 from .common import *
 from .four_point_quadrature_plane_stress import Mesh
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointNeumannBC
 
 
 
@@ -58,7 +59,15 @@ def compute_in_plane_C_matrix_composite(E11:float,E22:float,G12:float,nu12:float
 
 
 
-def apply_BC(K:np.ndarray,F:np.ndarray,NN:int,NN_l:int,NNDOF:int)->list:
+def apply_BC(K:np.ndarray,
+             F:np.ndarray,
+             NN:int,
+             NN_l:int,
+             NNDOF:int,
+             affected_nodes_set:list,
+             blocked_dofs_set:list,
+             force_vectors_set:list,
+             bc_types:list)->list:
     '''
     Function to apply the boundary conditions on Matrices.
 
@@ -88,9 +97,9 @@ def apply_BC(K:np.ndarray,F:np.ndarray,NN:int,NN_l:int,NNDOF:int)->list:
         if (np.fmod(ii+1,NN_l) == 1):
             for jj in range(NNDOF):
                     K[iNNDOF+jj,:] = 0.0
-                    #K[:,iNNDOF+jj] = 0.0
+                    K[:,iNNDOF+jj] = 0.0
                     K[iNNDOF+jj,iNNDOF+jj] = 1.0
-                    F[iNNDOF+jj] = 0.0
+                    #F[iNNDOF+jj] = 0.0
 
             # Node IDs where BCs are specified
             BCiN.append(ii)
@@ -98,7 +107,15 @@ def apply_BC(K:np.ndarray,F:np.ndarray,NN:int,NN_l:int,NNDOF:int)->list:
     
     return np.array(BCiN),NBcN
 
-def apply_BC_sparse(K:sparse.lil_matrix,F:sparse.lil_matrix,NN:int,NN_l:int,NNDOF:int)->list:
+def apply_BC_sparse(K:sparse.lil_matrix,
+                    F:sparse.lil_matrix,
+                    NN:int,
+                    NN_l:int,
+                    NNDOF:int,
+                    affected_nodes_set:list,
+                    blocked_dofs_set:list,
+                    force_vectors_set:list,
+                    bc_types:list)->list:
     '''
     Function to apply the boundary conditions on Matrices.
 
@@ -128,7 +145,7 @@ def apply_BC_sparse(K:sparse.lil_matrix,F:sparse.lil_matrix,NN:int,NN_l:int,NNDO
         if (np.fmod(ii+1,NN_l) == 1):
             for jj in range(NNDOF):
                     K[iNNDOF+jj,:] = 0.0
-                    #K[:,iNNDOF+jj] = 0.0
+                    K[:,iNNDOF+jj] = 0.0
                     K[iNNDOF+jj,iNNDOF+jj] = 1.0
                     F[iNNDOF+jj] = 0.0
 
@@ -429,11 +446,19 @@ class CompositeMaterialMesh(Mesh):
 
             # Function to apply the boundary conditions
             BCiN,NBcN = apply_BC(self.K,self.F,self.MeshGrid.grid_point_number_total,
-                                self.MeshGrid.grid_point_number_X,NUMBER_OF_NODAL_DOF)
+                                self.MeshGrid.grid_point_number_X,NUMBER_OF_NODAL_DOF,
+                                self._affected_nodes_set,
+                                self._blocked_dofs_set,
+                                self._force_vectors_set,
+                                self._bc_types)
         else:
             # Function to apply the boundary conditions
             BCiN,NBcN = apply_BC_sparse(self.K,self.F,self.MeshGrid.grid_point_number_total,
-                                self.MeshGrid.grid_point_number_X,NUMBER_OF_NODAL_DOF)
+                                self.MeshGrid.grid_point_number_X,NUMBER_OF_NODAL_DOF,
+                                self._affected_nodes_set,
+                                self._blocked_dofs_set,
+                                self._force_vectors_set,
+                                self._bc_types)
         
         # Apply vertical load on middle right node
         self.F[NUMBER_OF_NODAL_DOF*self.MeshGrid.grid_point_number_X*

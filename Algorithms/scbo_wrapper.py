@@ -122,7 +122,7 @@ class SCBO_Wrapper:
         if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, 
                                       Design_IOH_Wrapper, 
                                       ioh.iohcpp.problem.RealSingleObjective)):
-            return self.ioh_prob(x.detach().numpy())
+            return self.ioh_prob(x.detach().cpu().numpy())
         else:
             raise ValueError("Unsupported problem type.")
 

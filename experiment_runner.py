@@ -179,8 +179,7 @@ if __name__ == "__main__":
             nely=nely,
             volfrac=volfrac,
             VR=0.5,
-            V3_1=0,  # -0.1,
-            V3_2=0,  # -0.4
+            V3_list=[0, 0],  # -0.1, -0.4
             continuity_check_mode=continuity_check_mode,
             plot_variables=plot_variables,
         )
@@ -195,8 +194,7 @@ if __name__ == "__main__":
             nely=nely,
             volfrac=volfrac,
             VR=0.5,
-            V3_1=0,  # -0.1,
-            V3_2=0,  # -0.4
+            V3_list=[0, 0],  # -0.1, -0.4
             continuity_check_mode=continuity_check_mode,
             plot_variables=plot_variables,
         )
