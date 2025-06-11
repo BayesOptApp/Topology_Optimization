@@ -46,7 +46,7 @@ from boundary_conditions import BoundaryConditionList, LineDirichletBC, LineNeum
 from utils.Initialization import prepare_FEA
 
 from Design_Examples.Raw_Design.Design_LP import Design_LP, OPT_MODES, CONTINUITY_CHECK_MODES
-from FEA import COST_FUNCTIONS
+from Design_Examples.utils.FEA import COST_FUNCTIONS
 
 
 class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
@@ -105,6 +105,18 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             - plot_variables: set to plot the variables generated in the process
             - cost_function: the definition of the cost function to compute the target (so far only two options)
         """
+
+        # Get the kwargs
+        if kwargs is not None:
+            if isinstance(kwargs,dict):
+                # If the kwargs is a dictionary, then unpack it
+                kwargs_copy = kwargs.copy()
+            else:
+                raise ValueError("The kwargs must be a dictionary with the additional parameters")
+        
+        # Get the problem auxiliary name from the kwargs
+        prob_aux_name:str = kwargs_copy.pop("problem_aux_name", "")
+
         
         # This initialises the Design_LP Class
         Design_LP.__init__(self,nmmcsx=nmmcsx, 
@@ -133,7 +145,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
 
         # Initialize the IOH class dependency
         ioh.problem.RealSingleObjective.__init__(self,
-            name=self.problem_name(),
+            name=self.problem_name()+ "_" + prob_aux_name,
             n_variables=self.problem_dimension,
             instance=0,
             is_minimization=True,
@@ -366,7 +378,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
 
         # Compute the actual objective
         target = self.evaluate_FEA_design(volfrac=self.volfrac,
-                                             iterr=self.state.evaluations,
+                                             iterr=self.state.evaluations+1,
                                              run_ = self.current_run,
                                              sample=1,
                                              use_sparse_matrices=self.use_sparse_matrices,

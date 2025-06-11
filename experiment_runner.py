@@ -77,7 +77,7 @@ def args_parser(args:Optional[list]=None)-> argparse.Namespace:
         "--nmmcsy",
         type=int,
         default=2,
-        help="Number of MCS in x-direction."
+        help="Number of MCS in y-direction."
     )
 
     parser.add_argument(

@@ -45,7 +45,7 @@ from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointDir
 from utils.Initialization import prepare_FEA
 
 from Design_Examples.Raw_Design.Design import Design, CONTINUITY_CHECK_MODES
-from FEA import COST_FUNCTIONS
+from Design_Examples.utils.FEA import COST_FUNCTIONS
 
 
 class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
@@ -77,27 +77,44 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
         The initializer of this class initializes the same variables as the `Design` class
         and set ups the conditions to handle the solver properties and plotting handles.
 
-        ----------
-        Inputs:
-            - nmmcsx: number of Morphable Moving Components (MMCs) in x-direction
-            - nmmcsy: number of Morphable Moving Components (MMCs) in y-direction
-            - nelx: number of finite elements in x-direction
-            - nely: number of finite elements in y-direction
-            - mode: Optimisation mode: 'TO', 'LP' or 'TO+LP'
-            - volfrac: The volume limit to set
-            - symmetry_condition: Impose a symmetry condition on the design on the x-axis.
-                                  If the symmetry condition is imposed, only half of the 
-                                  supposed MMC's are saved.
-            - initialise_zero: Initialise the table of attributes as zeros
-            - add_noise: boolean to control if noise is added to default initialisation
-            - scalation_mode: Select a scalation mode: Set values for 'Bujny' or 'unitary'
-            - Emin: Setting of the Ersatz Material; to be numerically close to 0
-            - E0: Setting the Material interpolator (close to 1)
-            - use_sparse_matrices: Check to use sparse matrices to run the optimisation algorithm
-            - plot_variables: set to plot the variables generated in the process
-            - cost_function: the definition of the cost function to compute the target (so far only two options)
+
+        Args
+        ------------
+        - nmmcsx: number of Morphable Moving Components (MMCs) in x-direction
+        - nmmcsy: number of Morphable Moving Components (MMCs) in y-direction
+        - nelx: number of finite elements in x-direction
+        - nely: number of finite elements in y-direction
+        - mode: Optimisation mode: 'TO', 'LP' or 'TO+LP'
+        - volfrac: The volume limit to set
+        - symmetry_condition: Impose a symmetry condition on the design on the x-axis.
+                                If the symmetry condition is imposed, only half of the 
+                                supposed MMC's are saved.
+        - initialise_zero: Initialise the table of attributes as zeros
+        - add_noise: boolean to control if noise is added to default initialisation
+        - scalation_mode: Select a scalation mode: Set values for 'Bujny' or 'unitary'
+        - Emin: Setting of the Ersatz Material; to be numerically close to 0
+        - E0: Setting the Material interpolator (close to 1)
+        - use_sparse_matrices: Check to use sparse matrices to run the optimisation algorithm
+        - plot_variables: set to plot the variables generated in the process
+        - cost_function: the definition of the cost function to compute the target (so far only two options)
+        - run_: The run number for the problem instance
+        - continuity_check_mode: The mode to check the continuity of the design. 
+                                Options are 'discrete' or 'continuous'
+        - boundary_conditions_list: A list of boundary conditions to apply to the problem
+        - material_properties_dict: A dictionary with the material properties to use in the FEA
         """
+
+        # Get the kwargs
+        if kwargs is not None:
+            if isinstance(kwargs,dict):
+                # If the kwargs is a dictionary, then unpack it
+                kwargs_copy = kwargs.copy()
+            else:
+                raise ValueError("The kwargs must be a dictionary with the additional parameters")
         
+        # Get the problem auxiliary name from the kwargs
+        prob_aux_name:str = kwargs_copy.pop("problem_aux_name", "")
+
         # This initialises the Design Class
         super().__init__(nmmcsx=nmmcsx, 
                          nmmcsy=nmmcsy, 
@@ -121,7 +138,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
 
         # Initialize the IOH class dependency
         super(Design,self).__init__(
-            name=self.problem_name(),
+            name=self.problem_name()+ "_" + prob_aux_name,
             n_variables=self.problem_dimension,
             instance=0,
             is_minimization=True,
@@ -354,14 +371,15 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
 
         # Compute the actual objective
         target = self.evaluate_FEA_design(volfrac=self.volfrac,
-                                             iterr=self.state.evaluations,
+                                             iterr=self.state.evaluations+1,
                                              run_ = self.current_run,
                                              sample=1,
                                              use_sparse_matrices=self.use_sparse_matrices,
                                              plotVariables=self.plot_variables,
                                              cost_function=self.cost_function,
                                              penalty_factor=0.0,  # This is for not computing the penalty
-                                             avoid_computation_for_not_compliance=False)
+                                             avoid_computation_for_not_compliance=False,
+                                             )
         
         # Update the number of evaluations
         self._n_evals += 1

@@ -247,6 +247,9 @@ class VanillaBO:
         if n_DoE is None:
             n_DoE = self.dim * 3
         
+        # Print the device
+        print(f"Using device: {device}, dtype: {dtype}")
+        
         # Initialize the storage for all the data   
         self.C1_store = torch.empty((0, 1), **tkwargs)
         self.X_store = torch.empty((0, self.dim), **tkwargs)

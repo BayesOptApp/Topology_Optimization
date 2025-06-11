@@ -19,7 +19,7 @@ import math
 from copy import copy, deepcopy
 
 # Import evaluate FEA function
-from FEA import (evaluate_FEA, 
+from Design_Examples.utils.FEA import (evaluate_FEA, 
                  return_element_midpoint_positions, 
                  compute_number_of_joined_bodies, 
                  compute_number_of_joined_bodies_2)
@@ -46,6 +46,11 @@ from boundary_conditions import PointDirichletBC, PointNeumannBC, LineDirichletB
 
 # Import the default material properties
 from finite_element_solvers.common import (E11_DEFAULT,E22_DEFAULT,G12_DEFAULT,NU12_DEFAULT)
+
+# Default plot Modifier dict
+PLOT_MODIFIER_DEFAULT:dict = {'rotate':False,
+                              'rotate_angle':0.0,
+                              'scale':1.0}
 
 
 
@@ -186,7 +191,15 @@ class Design:
                 self.material_properties_dict:dict = material_properties_dict
             else:
                 raise TypeError("The material properties should be a dictionary")
+        
+        # Get the plot modifer dictionary from kwargs
+        plot_modifier_dict:dict = kwargs.pop('plot_modifier_dict', PLOT_MODIFIER_DEFAULT)
 
+        # Set the plot modifier dictionary
+        if isinstance(plot_modifier_dict, dict):
+            self.plot_modifier_dict:dict = plot_modifier_dict
+        else:
+            raise TypeError("The plot modifier should be a dictionary")
 
 
         
@@ -853,7 +866,8 @@ class Design:
                                     cost_function=cost_function,
                                     penalty_factor=penalty_factor,
                                     boundary_conditions=self.boundary_conditions_list,
-                                    material_properties_dict=self.material_properties_dict.copy())
+                                    material_properties_dict=self.material_properties_dict.copy(),
+                                    plot_modifier_dict=self.plot_modifier_dict)
             
         # Update the cost
         #self.__score_FEA = cost
@@ -1094,6 +1108,43 @@ class Design:
             
             # Set the new material properties dictionary
             self._material_properties_dict = partial_dict
+    
+    @property
+    def plot_modifier_dict(self)->dict:
+        '''
+        Returns the plot modifier dictionary
+        '''
+
+        return self._plot_modifier_dict
+    
+    @plot_modifier_dict.setter
+    def plot_modifier_dict(self,new_plot_modifier_dict:Optional[dict])->None:
+        '''
+        Sets the plot modifier dictionary
+
+        Inputs:
+        - new_plot_modifier_dict: `Optional[dict]` with the plot modifiers
+        '''
+        if new_plot_modifier_dict is None:
+            # If the new plot modifier is None, set the default one
+            self._plot_modifier_dict = PLOT_MODIFIER_DEFAULT.copy()
+        else:
+            # Check the new_plot_modifier_dict is a dictionary
+            if not isinstance(new_plot_modifier_dict,dict):
+                raise ValueError("The new plot modifier should be a dictionary")
+            else:
+                plot_modifier_template = PLOT_MODIFIER_DEFAULT.copy()
+                # Check the keys are valid
+                for key in new_plot_modifier_dict.keys():
+                    if key not in PLOT_MODIFIER_DEFAULT.keys():
+                        continue
+                    else:
+                        # Modify the value of the key
+                        plot_modifier_template[key] = new_plot_modifier_dict[key]
+        
+                # Set the new plot modifier dictionary
+                self._plot_modifier_dict = plot_modifier_template.copy()
+                            
 
     
     

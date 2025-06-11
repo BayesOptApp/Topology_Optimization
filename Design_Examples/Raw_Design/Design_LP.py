@@ -19,7 +19,7 @@ import math
 from copy import copy, deepcopy
 
 # Import evaluate FEA function
-from FEA import evaluate_FEA_LP
+from Design_Examples.utils.FEA import evaluate_FEA_LP
 
 # Import Typing library
 from typing import List, Tuple, Union, Optional
@@ -247,7 +247,8 @@ class Design_LP(Design):
                                     boundary_conditions=self.boundary_conditions_list,
                                     mode=self.mode,
                                     material_properties_dict=self.material_properties_dict.copy(),
-                                    interpolation_points=self.interpolation_points)
+                                    interpolation_points=self.interpolation_points,
+                                    plot_modifier_dict=self.plot_modifier_dict)
             
         # Update the cost
         #self.__score_FEA = cost
