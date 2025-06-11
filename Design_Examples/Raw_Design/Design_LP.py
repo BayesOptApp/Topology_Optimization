@@ -27,7 +27,7 @@ from typing import List, Tuple, Union, Optional
 # Import the MMC Library
 from geometry_parameterizations.MMC import MMC
 
-from Design import Design, SCALATION_MODES, CONTINUITY_CHECK_MODES
+from Design_Examples.Raw_Design.Design import Design, SCALATION_MODES, CONTINUITY_CHECK_MODES
 
 import warnings
 

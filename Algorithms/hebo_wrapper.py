@@ -8,8 +8,8 @@ try:
 
     from hebo.acquisitions.acq import GeneralAcq
     from hebo.design_space.design_space import DesignSpace
-    from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
-    from IOH_Wrapper import Design_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
     import ioh
 
 except:

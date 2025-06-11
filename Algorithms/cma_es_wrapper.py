@@ -3,8 +3,8 @@ from typing import Optional, Dict, Tuple, Union
 try:
     import cma
     from cma import fmin2
-    from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
-    from IOH_Wrapper import Design_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
     import ioh
 
 except:

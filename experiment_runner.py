@@ -2,8 +2,8 @@ from typing import List, Optional
 import argparse
 import os
 import ioh
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
-from IOH_Wrapper import Design_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 
 def args_parser(args:Optional[list]=None)-> argparse.Namespace:
     parser = argparse.ArgumentParser(description=r"""Run IOH_Wrapper_LP 
