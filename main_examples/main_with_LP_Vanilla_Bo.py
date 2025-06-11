@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
@@ -22,11 +22,11 @@ import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.vanilla_cbo_wrapper import VanillaCBO
+from Algorithms.vanilla_bo_wrapper import VanillaBO
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =568238
-RUN_E:int = 1007570
+RANDOM_SEED:int =2
+RUN_E:int = 1007573
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -62,7 +62,7 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=2,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,
@@ -88,7 +88,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="Vanilla-CBO",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Vanilla-BO",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -132,7 +132,7 @@ ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
-ioh_prob.convert_defined_constraint_to_type(3,1) # Volume
+ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
 
 # Set an initial starting point for CMA-ES
@@ -154,7 +154,7 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = VanillaCBO(ioh_prob=ioh_prob,
+algorithm = VanillaBO(ioh_prob=ioh_prob,
                          batch_size=1)
 
 algorithm(total_budget=1000,

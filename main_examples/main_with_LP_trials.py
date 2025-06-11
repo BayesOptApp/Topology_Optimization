@@ -1,24 +1,37 @@
-import numpy as np
+'''
+Reinterpretation of code for Structural Optimisation
+Based on work by @Elena Raponi
 
+@Authors:
+    - Elena Raponi
+    - Ivan Olarte Rodriguez
+
+This is an example on how to call the problem and run 
+an algorithm; in this case the algorithm will be CMA-ES from
+Nikolaus Hansen.
+'''
 
 # Import the setup class
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
-import pandas as pd
-from typing import Optional
 
-from Algorithms.hebo_wrapper import HEBO_Wrapper
+try:
+    import cma
+    from cma import fmin2
+except:
+    print("For this to run, install the cma library from Niko Hansen as `pip install cma`")
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =792891
-RUN_E:int = 1007567
-DOE_SIZE:int = lambda x: int(3*x)
+RANDOM_SEED:int =988989
+RUN_E:int = 1007582
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -53,19 +66,20 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=4,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
                                                 mode="TO",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
+                                                V3_1=0.0, #-0.1,
+                                                V3_2=0.0, #-0.4,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
-                                                run_= RUN_E)
+                                                run_= RUN_E,
+                                                continuity_check_mode="discrete")
 
 r"""
 The next excerpt of code is just setting the IOH Logger. You may check the IOH Experimenter Wiki to see other ways to Log the corresponding results.
@@ -79,7 +93,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="hebo",    # meta-data for the algorithm used to generate these results
+    algorithm_name="CMA-ES",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -100,7 +114,7 @@ The idea follows up from the constraint definition from IOH. Namely, this framew
     1. 1;NOT-> Type 1 or 'NOT' is that the constraint will not be evaluated.
     2. 2;HIDDEN-> Type 2 or 'HIDDEN', which means the constraint will be evaluated, but the target will be not penalized if the constraint condition is not fulfilled.
     3. 3;SOFT-> Type 3 or 'SOFT', which means the constraint will be evaluated, and the evaluation will result in a penalized function evaluation.
-    4. 4;HARD-> Type 4 or 'HARD', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
+    4. 4;HARD-> Type 3 or 'SOFT', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
                 corresponds to the penalty value.
 
 
@@ -116,31 +130,41 @@ To run unbounded and/or search algorithms, we recommend to set the constraints 1
 the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
 """
 # Convert the first two constraints to a not
-ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
-ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
+ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
+ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
 
 # Convert connectivity to a Hard constraint
-ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
+ioh_prob.convert_defined_constraint_to_type(2,4) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
-logger.watch(ioh_prob,"n_evals")
 
-ioh_prob.attach_logger(logger)  # Attach the logger to the problem instance
+# Set an initial starting point for CMA-ES
+#x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
+# x_init = [0.856610, 0.894010, 0.077076, 0.749771, 0.794301,
+#            0.566499, 0.761103, 0.601349, 0.060561, 0.212126,
+#              0.293474, 0.353355, 0.073318, 0.861783, 0.633627,
+#                0.942313, 0.778207, 0.430768]
 
-# Set the algorithm to be used
-algorithm = HEBO_Wrapper(
-    ioh_problem=ioh_prob,
-    batch_size=1,  # Set the batch size for HEBO
-)
+# x_init = [0.31246193944326517, 0.39058536305390773, 0.09248827389182868, 0.8020376986318517, 0.5804753387051605, 
+#           0.8871441788672787, 0.9928129874721041, 0.8928772936650907, 0.24302822460892404, 0.008419116221803866, 
+#           0.7013892102690673, 0.6961227547161339, 0.067253726618059, 0.9953874082022957, 0.6781516386318133]
 
-# Run the optimization
-algorithm(
-    n_DOE=10*ioh_prob.problem_dimension,  # Set the number of evaluations
-    random_seed=RANDOM_SEED,  # Set a random seed for reproducibility
-    budget=2000
-)
+x_init = [0.5846476499116904, 1, 0.20796050991953272, 0, 0.12363585311435159, 0.18877359219231862, 0.3041125715748584, 0.046272246937331056, 0.7068984370655718, 0.31635958639019585, 1, 0.7784678213146122, 1, 1, 0.8768716022064824]
+# Set the options for cma package `fmin` 
+opts:cma.CMAOptions = {'bounds':[0,1],
+                       'tolfun':1e-6,
+                       'seed':RANDOM_SEED,
+                       'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
+}
 
-logger.reset() # Close the logger to finalize the logging process
-ioh_prob.detach_logger(logger)  # Detach the logger from the problem instance
+# Attach the logger to the problem
+ioh_prob.attach_logger(logger)
+
+# Run CMA-ES
+#fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
+ioh_prob(x_init)
+ioh_prob.reset()
+logger.close()
+

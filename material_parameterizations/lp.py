@@ -226,7 +226,7 @@ def compute_elemental_lamination_parameters(NE:int,nelx:int,nely:int,
     V1_e = np.zeros((NE,1))
     V3_e = np.zeros((NE,1))
 
-    V1_arc,V3_arc = calculate_points_on_arc_segment(V3_1,V3_2,VR)
+    #V1_arc,V3_arc = calculate_points_on_arc_segment(V3_1,V3_2,VR)
 
     NP,E_P = setup_lamination_parameters(NE,nelx,nely,symmetry_cond)
 
@@ -234,9 +234,15 @@ def compute_elemental_lamination_parameters(NE:int,nelx:int,nely:int,
     xy_2:np.ndarray = xy_2_fun(length,height)
 
     # Initialize arrays to contain elemental lam. par.s
-    c = np.zeros((len(V3_arc),3))
-    c[:,0] = 1.0
-    c[:,1] = np.transpose(np.linspace(0.0,1.0,len(V3_arc)))
+    #c = np.zeros((len(V3_arc),3))
+    #c[:,0] = 1.0
+    #c[:,1] = np.transpose(np.linspace(0.0,1.0,len(V3_arc)))
+
+    if V3_1 == V3_2:
+        # If the two points are the same, then we can just return the same value
+        V1_e[:] = V1_1_fun(VR,V3_1)
+        V3_e[:] = V3_1
+        return V1_e,V3_e
 
     #Calculate elemental angles
     # Loop for each property

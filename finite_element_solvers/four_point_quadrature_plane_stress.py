@@ -924,10 +924,10 @@ class Mesh:
                 Ke = Ke + thickness*self.get_determinant_Jacobian_4()[0,gqp]*GQ_WEIGHT_4[gqp] * (B.transpose() @ C @ B)
 
                 # Elemental membrane mass matrix
-                S:np.ndarray = np.array([[self.__S4[0,gqp], 0, self.__S4[1,gqp], 0,self.__S4[2,gqp], 0, self.__S4[3,gqp], 0],
-                     [0, self.__S4[0,gqp], 0, self.__S4[1,gqp], 0, self.__S4[2,gqp], 0, self.__S4[3,gqp]]])
+                #S:np.ndarray = np.array([[self.__S4[0,gqp], 0, self.__S4[1,gqp], 0,self.__S4[2,gqp], 0, self.__S4[3,gqp], 0],
+                #     [0, self.__S4[0,gqp], 0, self.__S4[1,gqp], 0, self.__S4[2,gqp], 0, self.__S4[3,gqp]]])
 
-                Me = Me + (rho*thickness*self.get_determinant_Jacobian_4()[0,gqp] * GQ_WEIGHT_4[gqp])*(S.transpose() @ S)
+                #Me = Me + (rho*thickness*self.get_determinant_Jacobian_4()[0,gqp] * GQ_WEIGHT_4[gqp])*(S.transpose() @ S)
             
             if self.sparse_matrices:
                 assemble_global_spmatrices(Ke,Me,Fe,self.__K,self.__M,self.__F,el,self.MeshGrid.E,

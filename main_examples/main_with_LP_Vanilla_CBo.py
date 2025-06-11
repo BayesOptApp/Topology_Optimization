@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
@@ -22,11 +22,12 @@ import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
+from Algorithms.vanilla_cbo_wrapper import VanillaCBO
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =20
-RUN_E:int = 1007579
+RANDOM_SEED:int =568241
+RUN_E:int = 1007585
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -57,18 +58,23 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
+
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=5,
-                                                nmmcsy=4,
-                                                mode="TO",
+                                                nmmcsx=3,
+                                                nmmcsy=2,
+                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_list=[0, 0],
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
@@ -87,7 +93,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="CMA-ES",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Vanilla-CBO",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -124,14 +130,14 @@ To run unbounded and/or search algorithms, we recommend to set the constraints 1
 the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
 """
 # Convert the first two constraints to a not
-# ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
-# ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
+ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
+ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 
-# # Convert connectivity to a Hard constraint
-# ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
+# Convert connectivity to a Hard constraint
+ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
-ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
+ioh_prob.convert_defined_constraint_to_type(3,1) # Volume
 
 
 # Set an initial starting point for CMA-ES
@@ -153,16 +159,12 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = CMA_ES_Optimizer_Wrapper(ioh_problem=ioh_prob,
-                        sigma0=0.25,
-                        random_seed=RANDOM_SEED)
+algorithm = VanillaCBO(ioh_prob=ioh_prob,
+                         batch_size=1)
 
-algorithm(restarts=5,
-          tolfun=1e-6,
-          cma_active=False,
-          max_f_evals=1000,
-          #additional_options=opts,
-          verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
+algorithm(total_budget=1000,
+          random_seed=RANDOM_SEED,
+          n_DoE=3*ioh_prob.problem_dimension)
 
 ioh_prob.reset()
 logger.close()

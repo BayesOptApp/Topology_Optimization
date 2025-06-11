@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
@@ -22,11 +22,11 @@ import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
+from Algorithms.turbo_m_wrapper import Turbo_M_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5644
-RUN_E:int = 1007576
+RANDOM_SEED:int =5
+RUN_E:int = 45
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -58,20 +58,19 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
-
-
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=5,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_list=[0, 0],
+                                                V3_1=0, #-0.1,
+                                                V3_2=0, #-0.4,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
@@ -156,10 +155,11 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = Turbo_1_Wrapper(ioh_prob=ioh_prob,
-                         batch_size=4)
+algorithm = Turbo_M_Wrapper(ioh_prob=ioh_prob,
+                         batch_size=1,
+                         n_trust_regions=3)
 
-algorithm(total_budget=3000,
+algorithm(total_budget=1000,
           random_seed=RANDOM_SEED,
           n_DoE=3*ioh_prob.problem_dimension)
 

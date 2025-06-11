@@ -14,24 +14,19 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
 
-try:
-    import cma
-    from cma import fmin2
-except:
-    print("For this to run, install the cma library from Niko Hansen as `pip install cma`")
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
+from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =988989
-RUN_E:int = 1007582
+RANDOM_SEED:int =22
+RUN_E:int = 1007589
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -62,19 +57,22 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
+
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
                                                 nmmcsx=3,
                                                 nmmcsy=2,
-                                                mode="TO",
+                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0.0, #-0.1,
-                                                V3_2=0.0, #-0.4,
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
@@ -130,41 +128,46 @@ To run unbounded and/or search algorithms, we recommend to set the constraints 1
 the dynamic matrices of the system are ill-conditioned. On the other hand we invite you to play with constraints 3 and 4 as you wish. The following examples is suited for CMA-ES.
 """
 # Convert the first two constraints to a not
-ioh_prob.convert_defined_constraint_to_type(0,4) # Dirichlet
-ioh_prob.convert_defined_constraint_to_type(1,4) # Neumann
+# ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
+# ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 
-# Convert connectivity to a Hard constraint
-ioh_prob.convert_defined_constraint_to_type(2,4) # Connectivity
+# # Convert connectivity to a Hard constraint
+# ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
 
 # Set an initial starting point for CMA-ES
-#x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
-# x_init = [0.856610, 0.894010, 0.077076, 0.749771, 0.794301,
-#            0.566499, 0.761103, 0.601349, 0.060561, 0.212126,
-#              0.293474, 0.353355, 0.073318, 0.861783, 0.633627,
-#                0.942313, 0.778207, 0.430768]
+x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
 
-# x_init = [0.31246193944326517, 0.39058536305390773, 0.09248827389182868, 0.8020376986318517, 0.5804753387051605, 
-#           0.8871441788672787, 0.9928129874721041, 0.8928772936650907, 0.24302822460892404, 0.008419116221803866, 
-#           0.7013892102690673, 0.6961227547161339, 0.067253726618059, 0.9953874082022957, 0.6781516386318133]
-
-x_init = [0.5846476499116904, 1, 0.20796050991953272, 0, 0.12363585311435159, 0.18877359219231862, 0.3041125715748584, 0.046272246937331056, 0.7068984370655718, 0.31635958639019585, 1, 0.7784678213146122, 1, 1, 0.8768716022064824]
 # Set the options for cma package `fmin` 
-opts:cma.CMAOptions = {'bounds':[0,1],
-                       'tolfun':1e-6,
-                       'seed':RANDOM_SEED,
-                       'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
-}
+# opts:dict= {'bounds':[0,1],
+#                        'tolfun':1e-6,
+#                        'seed':RANDOM_SEED,
+#                        'maxfevals':10000,
+#                        'CMA_active':False,
+#                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
+#}
+
+
+logger.watch(ioh_prob,"n_evals")
 
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-#fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
-ioh_prob(x_init)
+algorithm = CMA_ES_Optimizer_Wrapper(ioh_problem=ioh_prob,
+                        sigma0=0.25,
+                        random_seed=RANDOM_SEED)
+
+algorithm(restarts=5,
+          tolfun=1e-6,
+          cma_active=False,
+          max_f_evals=1000,
+          #additional_options=opts,
+          verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
+
 ioh_prob.reset()
 logger.close()
 

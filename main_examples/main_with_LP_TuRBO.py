@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
@@ -22,11 +22,11 @@ import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.baxus_wrapper import BAxUS_Wrapper
+from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5646335
-RUN_E:int = 1007573
+RANDOM_SEED:int =5645
+RUN_E:int = 1007574
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -58,23 +58,27 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
+
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=2,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E,
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 continuity_check_mode="discrete")
 
 r"""
@@ -89,7 +93,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="BAxUS",    # meta-data for the algorithm used to generate these results
+    algorithm_name="TuRBO_1",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -155,10 +159,10 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = BAxUS_Wrapper(ioh_prob=ioh_prob,
-                          batch_size=1)
+algorithm = Turbo_1_Wrapper(ioh_prob=ioh_prob,
+                         batch_size=4)
 
-algorithm(total_budget=1000,
+algorithm(total_budget=3000,
           random_seed=RANDOM_SEED,
           n_DoE=3*ioh_prob.problem_dimension)
 

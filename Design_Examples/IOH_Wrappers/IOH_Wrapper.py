@@ -44,7 +44,7 @@ from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointDir
 # Import the Initialization
 from utils.Initialization import prepare_FEA
 
-from Design import Design, CONTINUITY_CHECK_MODES
+from Design_Examples.Raw_Design.Design import Design, CONTINUITY_CHECK_MODES
 from FEA import COST_FUNCTIONS
 
 
@@ -70,6 +70,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
                  run_:int = 0,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
                  boundary_conditions_list:Optional[BoundaryConditionList]=None,
+                 material_properties_dict:Optional[dict]=None,
                  **kwargs):
         
         r"""
@@ -110,6 +111,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
                          Emin=Emin,
                          continuity_check_mode=continuity_check_mode,
                          boundary_conditions_list=boundary_conditions_list,
+                         material_properties_dict=material_properties_dict,
                          **kwargs)
         
         # Append the fractional volume constraint
@@ -151,15 +153,15 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
         # Register the different constraints
         constr1:RealConstraint = RealConstraint(self.dirichlet_boundary_condition, name="Dirichlet Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  7.5, 
+                                                        weight =  200, 
                                                         exponent=1.0)
         constr2:RealConstraint = RealConstraint(self.neumann_boundary_condition, name="Neumann Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  7.5, 
+                                                        weight =  200, 
                                                         exponent=1.0)
         constr3:RealConstraint = RealConstraint(self.connectivity_condition, name="Connectivity Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  7.5, 
+                                                        weight =  200, 
                                                         exponent=1.0)
         constr4:RealConstraint = RealConstraint(self.volume_fraction_cond, name="Volume Fraction Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,

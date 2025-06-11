@@ -1,36 +1,24 @@
-'''
-Reinterpretation of code for Structural Optimisation
-Based on work by @Elena Raponi
-
-@Authors:
-    - Elena Raponi
-    - Ivan Olarte Rodriguez
-
-This is an example on how to call the problem and run 
-an algorithm; in this case the algorithm will be CMA-ES from
-Nikolaus Hansen.
-'''
-
-# Import the setup class
-
-## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-#from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
-from IOH_Wrapper import Design_IOH_Wrapper
-import os
-import ioh
 import numpy as np
 
 
+# Import the setup class
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+#from IOH_Wrapper import Design_IOH_Wrapper
+import os
+import ioh
+import numpy as np
+import pandas as pd
+from typing import Optional
+
+from Algorithms.de_wrapper import DifferentialEvolutionWrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointNeumannBC, PointDirichletBC
-
+## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5647
-RUN_E:int = 21
-
+RANDOM_SEED:int =7997
+RUN_E:int = 1007587
+DOE_SIZE:int = lambda x: int(3*x)
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -61,45 +49,27 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
-
-boundary_conds = BoundaryConditionList()
-# Add Dirichlet Boundary Condition
-#dirichlet_bc = LineDirichletBC(start_point=(0.0, 0.0), end_point=(0.0, 1.0),blocked_dof=(1,2))
-# Add Neumann Boundary Condition
-#neumann_bc = PointNeumannBC(location=(1.0, 0.0),force_vector=(0.0, -0.25/25))
-
-# Add the boundary conditions to the list
-#boundary_conds.append(dirichlet_bc)
-#boundary_conds.append(neumann_bc)
-
-dirichlet_bc_1 = PointDirichletBC(location=(0.0, 0.0), blocked_dof=(1, 2))
-dirichlet_bc_2 = PointDirichletBC(location=(0.0, 1.0), blocked_dof=(1, 2))
-#dirichlet_bc_3 = PointDirichletBC(location=(0.1, 0.5), blocked_dof=1)
-
-neumann_bc = PointNeumannBC(location=(1.0, 0.5), force_vector=(-0.25, 0.0 ))
-# Add the boundary conditions to the list
-boundary_conds.append(dirichlet_bc_1)
-boundary_conds.append(dirichlet_bc_2)
-#boundary_conds.append(dirichlet_bc_3)
-boundary_conds.append(neumann_bc)
+interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
 
 # Generate Obj
-ioh_prob:Design_IOH_Wrapper = Design_IOH_Wrapper(nelx=50,
-                                                nely=100,                         
+ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
+                                                nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=5,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
+                                                mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
-                                                VR=0.4,
-                                                V3_list=[0, 0],
+                                                VR=0.5,
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E,
-                                                continuity_check_mode="discrete",
-                                                boundary_conditions_list=boundary_conds,)
+                                                continuity_check_mode="discrete")
 
 r"""
 The next excerpt of code is just setting the IOH Logger. You may check the IOH Experimenter Wiki to see other ways to Log the corresponding results.
@@ -113,7 +83,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="TuRBO_1",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Random Search",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -134,7 +104,7 @@ The idea follows up from the constraint definition from IOH. Namely, this framew
     1. 1;NOT-> Type 1 or 'NOT' is that the constraint will not be evaluated.
     2. 2;HIDDEN-> Type 2 or 'HIDDEN', which means the constraint will be evaluated, but the target will be not penalized if the constraint condition is not fulfilled.
     3. 3;SOFT-> Type 3 or 'SOFT', which means the constraint will be evaluated, and the evaluation will result in a penalized function evaluation.
-    4. 4;HARD-> Type 3 or 'SOFT', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
+    4. 4;HARD-> Type 4 or 'HARD', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
                 corresponds to the penalty value.
 
 
@@ -159,33 +129,20 @@ ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
-
-# Set an initial starting point for CMA-ES
-x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
-
-# Set the options for cma package `fmin` 
-# opts:dict= {'bounds':[0,1],
-#                        'tolfun':1e-6,
-#                        'seed':RANDOM_SEED,
-#                        'maxfevals':10000,
-#                        'CMA_active':False,
-#                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
-#}
-
-
 logger.watch(ioh_prob,"n_evals")
 
-# Attach the logger to the problem
-ioh_prob.attach_logger(logger)
+ioh_prob.attach_logger(logger)  # Attach the logger to the problem instance
 
-# Run CMA-ES
-algorithm = Turbo_1_Wrapper(ioh_prob=ioh_prob,
-                         batch_size=4)
+# Set the algorithm to be used
+algorithm = DifferentialEvolutionWrapper(
+    problem=ioh_prob,  # The problem instance to be optimized
+)
 
-algorithm(total_budget=3000,
-          random_seed=RANDOM_SEED,
-          n_DoE=3*ioh_prob.problem_dimension)
+# Run the optimization
+algorithm(
+    budget=2000,  # Set the budget based on the number of variables
+    random_seed=RANDOM_SEED,  # Set a random seed for reproducibility
+)
 
-ioh_prob.reset()
-logger.close()
-
+logger.reset() # Close the logger to finalize the logging process
+ioh_prob.detach_logger(logger)  # Detach the logger from the problem instance

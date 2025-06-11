@@ -14,7 +14,7 @@ Nikolaus Hansen.
 # Import the setup class
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
@@ -22,12 +22,11 @@ import numpy as np
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.vanilla_bo_wrapper import VanillaBO
+from Algorithms.scbo_wrapper import SCBO_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =568242422
-RUN_E:int = 1007570
-
+RANDOM_SEED:int =553426
+RUN_E:int = 1007584
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -58,22 +57,29 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+
+#interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+#V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
+
+interpolation_points = [(0.0, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.4]  # Define the lamination parameters to be used in the problem
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
                                                 #nmmcsx=10,
-                                                nmmcsx=2,
+                                                nmmcsx=3,
                                                 nmmcsy=2,
                                                 mode="TO+LP",
                                                 symmetry_condition=True,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_list=[0, 0],
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
                                                 run_= RUN_E,
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 continuity_check_mode="discrete")
 
 r"""
@@ -88,7 +94,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="Vanilla-BO",    # meta-data for the algorithm used to generate these results
+    algorithm_name="SCBO-1",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -132,7 +138,7 @@ ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
 ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
 # Convert volume constraint soft
-ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
+ioh_prob.convert_defined_constraint_to_type(3,1) # Volume
 
 
 # Set an initial starting point for CMA-ES
@@ -154,12 +160,12 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-algorithm = VanillaBO(ioh_prob=ioh_prob,
+algorithm = SCBO_Wrapper(ioh_prob=ioh_prob,
                          batch_size=1)
 
 algorithm(total_budget=1000,
           random_seed=RANDOM_SEED,
-          n_DoE=3*ioh_prob.problem_dimension)
+          n_DoE=ioh_prob.problem_dimension)
 
 ioh_prob.reset()
 logger.close()

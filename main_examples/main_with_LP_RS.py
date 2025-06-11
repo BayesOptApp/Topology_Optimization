@@ -1,33 +1,24 @@
-'''
-Reinterpretation of code for Structural Optimisation
-Based on work by @Elena Raponi
+import numpy as np
 
-@Authors:
-    - Elena Raponi
-    - Ivan Olarte Rodriguez
-
-This is an example on how to call the problem and run 
-an algorithm; in this case the algorithm will be CMA-ES from
-Nikolaus Hansen.
-'''
 
 # Import the setup class
-
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 #from IOH_Wrapper import Design_IOH_Wrapper
 import os
 import ioh
 import numpy as np
+import pandas as pd
+from typing import Optional
 
-
+from Algorithms.random_search_wrapper import RandomSearchWrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
-from Algorithms.turbo_m_wrapper import Turbo_M_Wrapper
+
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =5
-RUN_E:int = 45
-
+RANDOM_SEED:int =792892
+RUN_E:int = 1007586
+DOE_SIZE:int = lambda x: int(3*x)
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 r"""
@@ -58,6 +49,9 @@ of the normal IOH `RealSingleObjective` problem instance. The parameters this ob
 
 
 """
+interpolation_points = [(0.0, 0.0), (0.5, 0.0), (1.0, 0.5)]  # Define the interpolation points for the lamination parameters
+V3_list = [0.0, -0.1, -0.4]  # Define the lamination parameters to be used in the problem
+
 # Generate Obj
 ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 nely=50,                         
@@ -69,8 +63,8 @@ ioh_prob:Design_LP_IOH_Wrapper = Design_LP_IOH_Wrapper(nelx=100,
                                                 volfrac=0.5,
                                                 use_sparse_matrices=True,
                                                 VR=0.5,
-                                                V3_1=0, #-0.1,
-                                                V3_2=0, #-0.4,
+                                                interpolation_points=interpolation_points,
+                                                V3_list=V3_list,
                                                 plot_variables=True,
                                                 E0= 1.00,
                                                 Emin= 1e-9,
@@ -89,7 +83,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="TuRBO_1",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Random Search",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -110,7 +104,7 @@ The idea follows up from the constraint definition from IOH. Namely, this framew
     1. 1;NOT-> Type 1 or 'NOT' is that the constraint will not be evaluated.
     2. 2;HIDDEN-> Type 2 or 'HIDDEN', which means the constraint will be evaluated, but the target will be not penalized if the constraint condition is not fulfilled.
     3. 3;SOFT-> Type 3 or 'SOFT', which means the constraint will be evaluated, and the evaluation will result in a penalized function evaluation.
-    4. 4;HARD-> Type 3 or 'SOFT', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
+    4. 4;HARD-> Type 4 or 'HARD', which means the constraint will be evaluated, and if not fulfilled, then the target function will not be computed and the resulting function evaluation just 
                 corresponds to the penalty value.
 
 
@@ -135,34 +129,20 @@ ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 # Convert volume constraint soft
 ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
 
-
-# Set an initial starting point for CMA-ES
-x_init = np.ravel(np.random.rand(1,ioh_prob.problem_dimension))
-
-# Set the options for cma package `fmin` 
-# opts:dict= {'bounds':[0,1],
-#                        'tolfun':1e-6,
-#                        'seed':RANDOM_SEED,
-#                        'maxfevals':10000,
-#                        'CMA_active':False,
-#                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes/")
-#}
-
-
 logger.watch(ioh_prob,"n_evals")
 
-# Attach the logger to the problem
-ioh_prob.attach_logger(logger)
+ioh_prob.attach_logger(logger)  # Attach the logger to the problem instance
 
-# Run CMA-ES
-algorithm = Turbo_M_Wrapper(ioh_prob=ioh_prob,
-                         batch_size=1,
-                         n_trust_regions=3)
+# Set the algorithm to be used
+algorithm = RandomSearchWrapper(
+    problem=ioh_prob,  # The problem instance to be optimized
+)
 
-algorithm(total_budget=1000,
-          random_seed=RANDOM_SEED,
-          n_DoE=3*ioh_prob.problem_dimension)
+# Run the optimization
+algorithm(
+    budget=2000,  # Set the budget based on the number of variables
+    random_seed=RANDOM_SEED,  # Set a random seed for reproducibility
+)
 
-ioh_prob.reset()
-logger.close()
-
+logger.reset() # Close the logger to finalize the logging process
+ioh_prob.detach_logger()

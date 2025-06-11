@@ -90,7 +90,7 @@ class DifferentialEvolutionWrapper:
                  recombination=0.7, 
                  callback=None, 
                  disp=False, 
-                 polish=True, 
+                 polish=False, 
                  init='latinhypercube'):
         
         """

@@ -10,17 +10,20 @@ Based on work by @Elena Raponi
 
 # import libraries
 import numpy as np
-import math
+from typing import List, Tuple, Union
 from finite_element_solvers.four_point_quadrature_plane_stress_composite import Mesh, CompositeMaterialMesh
-from finite_element_solvers import select_2D_quadrature_solver
+#from finite_element_solvers import select_2D_quadrature_solver
+
 from meshers.MeshGrid2D import MeshGrid2D
-from boundary_conditions import BoundaryConditionList, LineNeumannBC, PointNeumannBC, PointDirichletBC, LineDirichletBC
+from boundary_conditions import BoundaryConditionList
+from material_parameterizations.lpim import LaminationMasterNode
 # Import plotting functions
 from utils.Helper_Plots import plotNodalVariables, plotNodalVariables_pyvista
 from utils.Helper_Plots import plot_LP_Parameters, plot_LP_Parameters_pyvista
 
 # Import the LP functions
-from material_parameterizations.lp import compute_elemental_lamination_parameters
+#from material_parameterizations.lp import compute_elemental_lamination_parameters
+from material_parameterizations.lpim import compute_elemental_lamination_parameters
 
 
 ''' Constants '''
@@ -48,6 +51,7 @@ ADDITIONAL (HELPER) FUNCTIONS
 def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
                  sample:int,volfrac:float,Emin:float,E0:float,run_:int,
                  boundary_conditions:BoundaryConditionList,
+                 material_properties_dict:dict,
                  penalty_factor:float=PENALTY_FACTOR_DEFAULT,
                  plotVariables:bool=False,
                  sparse_matrices_solver:bool=False,pyvista_plot=True,
@@ -85,7 +89,11 @@ def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
                      height=h,
                      element_length=ELEMENT_LENGTH_DEFAULT,
                      element_height=ELEMENT_HEIGHT_DEFAULT,
-                     sparse_matrices=sparse_matrices_solver)
+                     sparse_matrices=sparse_matrices_solver,
+                     E11=material_properties_dict["E11"],
+                     E22=material_properties_dict["E22"],
+                     G12=material_properties_dict["G12"],
+                     nu12=material_properties_dict["nu12"])
     
     # Reshape the density matrix into a vector
     #density_vec:np.ndarray = np.rot90(TO_mat).reshape((1,mesh.MeshGrid.nel_total),order='F')
@@ -170,10 +178,15 @@ def evaluate_FEA(TO_mat:np.ndarray,iterr:int,
 def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
                  sample:int,volfrac:float,Emin:float,E0:float,run_:int,
                  boundary_conditions:BoundaryConditionList,
+                 material_properties_dict:dict,
+                 interpolation_points:List[Tuple[Union[float,int], Union[float,int]]],
                  penalty_factor:float=PENALTY_FACTOR_DEFAULT,
-                 plotVariables:bool=False,symmetry_cond:bool=True,
-                 sparse_matrices_solver:bool=False,pyvista_plot=True,
-                 cost_function:str = COST_FUNCTIONS[0],mode:str="TO",
+                 plotVariables:bool=False,
+                 symmetry_cond:bool=True,
+                 sparse_matrices_solver:bool=False,
+                 pyvista_plot=True,
+                 cost_function:str = COST_FUNCTIONS[0],
+                 mode:str="TO",
                  **kwargs)->float:
     
     '''
@@ -198,19 +211,22 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
     
     x = x.flatten()
     
-    V3_1:float = x[1]
-    V3_2:float = x[2]
     VR:float = x[0]
     
     # Get length and height of the elements based on density matrix
     l:float = TO_mat.shape[1]
     h:float = TO_mat.shape[0]
+
     
     # Generate the mesh object
     mesh:Mesh = CompositeMaterialMesh(boundary_conditions_list=boundary_conditions,
                                       length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
                                       element_height=ELEMENT_HEIGHT_DEFAULT,
-                                      sparse_matrices=sparse_matrices_solver)
+                                      sparse_matrices=sparse_matrices_solver,
+                                      E11=material_properties_dict["E11"],
+                                      E22=material_properties_dict["E22"],
+                                      G12=material_properties_dict["G12"],
+                                      nu12=material_properties_dict["nu12"])
     
     # Reshape the density matrix into a vector
     #density_vec:np.ndarray = np.rot90(TO_mat).reshape((1,mesh.MeshGrid.nel_total),order='F')
@@ -220,14 +236,21 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
     nelx:int = mesh.MeshGrid.nelx
     nely:int = mesh.MeshGrid.nely
 
-    V1_e,V3_e = compute_elemental_lamination_parameters(mesh.MeshGrid.nel_total,
-                                                        nelx,
-                                                        nely,
-                                                        mesh.MeshGrid.E,
-                                                        V3_1,V3_2,VR,
-                                                        mesh.MeshGrid.coordinate_grid,
-                                                        l,h,
-                                                        symmetry_cond)
+    # Construct a list of lamination master nodes
+    lamination_master_nodes:List[LaminationMasterNode] = list()
+    for ii in range(len(interpolation_points)):
+        # Create a new lamination master node
+        lmn:LaminationMasterNode = LaminationMasterNode(x=interpolation_points[ii][0]*nelx,
+                                                        y=interpolation_points[ii][1]*nely,
+                                                        V3=x[ii+1])
+        # Append the lamination master node to the list
+        lamination_master_nodes.append(lmn)
+
+    V1_e,V3_e = compute_elemental_lamination_parameters(mesh.MeshGrid,
+                                                        master_nodes_list=lamination_master_nodes,
+                                                        VR=VR,
+                                                        symmetry_cond=symmetry_cond,
+    )
     
     mesh.set_matrices(density_vec,V1_e,V3_e,THICKNESS_DEFAULT,RHO_DEFAULT,E0,Emin)
 
@@ -249,8 +272,11 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
         part_sum = np.sum((TO_mat>Emin))
         cost:float = u_mean + penalty_factor*max(0.0, part_sum-nelx*nely*volfrac)
     elif cost_function == COST_FUNCTIONS[1]:
-        comp_vec = mesh.mesh_compute_compliance(disp=u,density_vector=density_vec,
-                                                V1_e=V1_e,V3_e=V3_e,thickness=THICKNESS_DEFAULT,
+        comp_vec = mesh.mesh_compute_compliance(disp=u,
+                                                density_vector=density_vec,
+                                                V1_e=V1_e,
+                                                V3_e=V3_e,
+                                                thickness=THICKNESS_DEFAULT,
                                                 E0=E0,Emin=Emin)
 
         #Manipulate compliance
@@ -319,154 +345,7 @@ def evaluate_FEA_LP(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
 
     return cost
 
-def compute_objective_function(x:np.ndarray,TO_mat:np.ndarray,iterr:int,
-                 sample:int,Emin:float,E0:float,run_:int,
-                 plotVariables:bool=False,symmetry_cond:bool=True,
-                 sparse_matrices_solver:bool=False, 
-                 cost_function:str=COST_FUNCTIONS[0],
-                 pyvista_plot=True)-> float:
-    '''
-    Method to evaluate the objective function of a design given by some parameter
 
-    -----------
-    Inputs:
-    - x: (1 x 3) Array with lamination parameters
-    - TO_mat: Density Mapping of the design
-    - iterr: Current iteration of optimisation loop
-    - symmetry_cond: handle informing if the symmetry condition is active for the design
-    - sparse_matrices_solver: handle used to determine if using the FE solver with sparse matrices. This is useful for very large systems
-    - Emin: Setting of the Ersatz Material; to be numerically close to 0
-    - E0: Setting the Material interpolator (close to 1)
-    - cost_function: A string defining the cost function. Set "mean displacement" to compute the cost function based on the mean displacement, or "compliance" to define the cost function based on the average compliance of the design.
-    - pyvista_plot: Handler to allow plotting with PyVista instead of the default Matplotlib, which is usually faster.
-
-    Returns
-    -----------
-    - cost: Some floating point value with the physical cost evaluated
-    '''
-    
-    # Check the entry on the cost function
-    if cost_function not in COST_FUNCTIONS:
-        raise ValueError("The cost function set is not allowed")
-    
-    x = x.flatten()
-    
-    V3_1:float = x[1]
-    V3_2:float = x[2]
-    VR:float = x[0]
-    
-    # Get length and height of the elements based on density matrix
-    l:float = TO_mat.shape[1]
-    h:float = TO_mat.shape[0]
-    
-    # Generate the mesh object
-    mesh:CompositeMaterialMesh = CompositeMaterialMesh(length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
-                     element_height=ELEMENT_HEIGHT_DEFAULT,
-                     sparse_matrices=sparse_matrices_solver)
-    
-    # Reshape the density matrix into a vector
-    #density_vec:np.ndarray = np.rot90(TO_mat).reshape((1,mesh.MeshGrid.nel_total),order='F')
-    density_vec:np.ndarray = TO_mat.reshape((1,mesh.MeshGrid.nel_total),order='C')
-    
-    
-     # Extract the number of elements
-    nelx:int = mesh.MeshGrid.nelx
-    nely:int = mesh.MeshGrid.nely
-
-    V1_e,V3_e = compute_elemental_lamination_parameters(mesh.MeshGrid.nel_total,
-                                                        nelx,
-                                                        nely,
-                                                        mesh.MeshGrid.E,
-                                                        V3_1,V3_2,VR,
-                                                        mesh.MeshGrid.coordinate_grid,
-                                                        l,h,
-                                                        symmetry_cond)
-    
-    mesh.set_matrices(density_vec,V1_e,V3_e,THICKNESS_DEFAULT,RHO_DEFAULT,E0,Emin)
-
-   
-    # Compute the displacements and other metrics
-    u,u_mean,_ = mesh.compute_displacements()
-    
-    # Compute the cost function
-    if cost_function == COST_FUNCTIONS[0]:
-        cost:float = u_mean 
-    elif cost_function == COST_FUNCTIONS[1]:
-        comp_vec = mesh.mesh_compute_compliance(disp=u,density_vector=density_vec,
-                                                V1_e=V1_e,V3_e=V3_e,thickness=THICKNESS_DEFAULT,
-                                                E0=E0,Emin=Emin)
-
-        #Manipulate compliance
-        ce:np.ndarray = comp_vec.reshape((mesh.MeshGrid.nely,mesh.MeshGrid.nelx),order='F')
-        # Compute compliance value
-        compliance = np.sum(ce)
-
-        cost:float = compliance 
-        
-    
-    # This part is meant for plotting purposes
-    # -----------------------------------------------------------------------
-    # N_static - Calculate the deformed global node matrix
-    # Reshape the displacements
-    u_r:np.ndarray = u.reshape((-1,2))
-    N_static:np.ndarray = np.array([mesh.MeshGrid.coordinate_grid[:,0],
-                                    mesh.MeshGrid.coordinate_grid[:,1]+u_r[:,0],
-                                    mesh.MeshGrid.coordinate_grid[:,2]+u_r[:,1]])
-    N_static = N_static.T 
-    
-    if (np.all((np.abs(u_r) < 100)) and plotVariables):
-        # Retrieve stresses and strains from the displacements
-        list_of_vars = mesh.mesh_retrieve_Strain_Stress(V1_e=V1_e,
-                                                        V3_e=V3_e,
-                                                        density_vector=density_vec,
-                                                        disp=u)  
-        # Identify the corresponding stresses and strains
-        #epsxxN: = list_of_vars[0]
-        #epsyyN = list_of_vars[1]
-        #epsxyN = list_of_vars[2]
-        #epsxxE = list_of_vars[3]
-        #epsyyE = list_of_vars[4]
-        #epsxyE = list_of_vars[5]
-        #sigxxN = list_of_vars[6]
-        #sigyyN = list_of_vars[7]
-        #sigxyN = list_of_vars[8]
-        vonMisesN = list_of_vars[9]
-        #sigxxE = list_of_vars[10]
-        #sigyyE = list_of_vars[11]
-        #sigxyE = list_of_vars[12]
-        #vonMisesE = list_of_vars[13]
-
-        # Stress contours
-        mat_ind = (density_vec>Emin)
-
-        if not pyvista_plot:
-            plotNodalVariables(cost=cost,N_static=N_static,element_map=mesh.MeshGrid.E,
-                            mat_ind = mat_ind, nodal_variable= vonMisesN,
-                                iterr=iterr,sample=sample,run_=run_)
-            
-            plot_LP_Parameters(cost=cost,N_static=mesh.MeshGrid.coordinate_grid,
-                           element_map=mesh.MeshGrid.E,
-                           NN=mesh.MeshGrid.grid_point_number_total,
-                           NN_l=mesh.MeshGrid.grid_point_number_X,
-                           NN_h=mesh.MeshGrid.grid_point_number_Y,
-                           mat_ind = mat_ind, V1_e = V1_e,V3_e=V3_e,
-                            iterr=iterr,sample=sample,run_=run_)
-            
-        else:
-            plotNodalVariables_pyvista(cost=cost,N_static=N_static,element_map=mesh.MeshGrid.E,
-                            mat_ind = mat_ind, nodal_variable= vonMisesN,
-                                iterr=iterr,sample=sample,run_=run_)
-
-            plot_LP_Parameters_pyvista(cost=cost,N_static=mesh.MeshGrid.coordinate_grid,
-                            element_map=mesh.MeshGrid.E,
-                            NN=mesh.MeshGrid.grid_point_number_total,
-                            NN_l=mesh.MeshGrid.grid_point_number_X,
-                            NN_h=mesh.MeshGrid.grid_point_number_Y,
-                            mat_ind = mat_ind, V1_e = V1_e,V3_e=V3_e,
-                                iterr=iterr,sample=sample,run_=run_)
-    
-    
-    return cost
 
 def return_element_midpoint_positions(TO_mat:np.ndarray,Emin:float,E0:float):
     '''

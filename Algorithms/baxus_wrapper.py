@@ -133,7 +133,7 @@ class BAxUS_Wrapper:
             bounds = self.bounds
             x = (x + 1) / 2 * (bounds[1] - bounds[0]) + bounds[0]
             # Evaluate the objective function
-            return self.ioh_prob(x.detach().cpu().numpy())
+            return self.ioh_prob(x.cpu().numpy())
         else:
             raise ValueError("Unsupported problem type.")
 
@@ -147,6 +147,7 @@ class BAxUS_Wrapper:
 
     def _create_candidate(
             self,
+            seed,
             state,
             model,  # GP model
             X:Tensor,  # Evaluated points on the domain [-1, 1]^d
@@ -171,7 +172,7 @@ class BAxUS_Wrapper:
 
         if acqf == "ts":
             dim = X.shape[-1]
-            sobol = SobolEngine(dim, scramble=True)
+            sobol = SobolEngine(dim, scramble=True,seed=seed)
             pert = sobol.draw(n_candidates).to(dtype=dtype, device=device)
             pert = tr_lb + (tr_ub - tr_lb) * pert
 
@@ -235,6 +236,7 @@ class BAxUS_Wrapper:
                  num_restarts:int=10,
                  raw_samples:int=4,
                  acquisition_function:str="ts",):
+        
         # Generate initial data
         if n_DoE is None:
             n_DoE = self.dim * 3
@@ -259,7 +261,7 @@ class BAxUS_Wrapper:
         n_evals += n_DoE
 
         self.X_store_input =self.X_baxus_input.clone()
-        self.Y_baxus = torch.tensor([-self.eval_objective(x) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
+        self.Y_baxus = torch.tensor([-self.eval_objective(x.detach()) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
         self.Y_store = torch.cat((self.Y_store, self.Y_baxus), dim=0)
         self.C1_store = torch.tensor(
             [self.ioh_prob.compute_actual_volume_excess(x.detach().cpu().numpy()) for x in self.X_baxus_input], dtype=dtype, device=device).unsqueeze(-1)
@@ -297,6 +299,7 @@ class BAxUS_Wrapper:
 
                     # Create a batch
                     X_next_target = self._create_candidate(
+                        seed=random_seed,
                         state=state,
                         model=model,
                         X=self.X_baxus_target,
@@ -312,7 +315,7 @@ class BAxUS_Wrapper:
                 # Sum the number of evaluations
                 n_evals += X_next_input.shape[0]
                 Y_next = torch.tensor(
-                    [-self.eval_objective(x) for x in X_next_input], dtype=dtype, device=device
+                    [-self.eval_objective(x.detach()) for x in X_next_input], dtype=dtype, device=device
                 ).unsqueeze(-1)
 
                 C1_next = torch.tensor(

@@ -72,6 +72,7 @@ class Design_LP(Design):
                  interpolation_points:Optional[List[Tuple[Union[float,int], Union[float,int]]]] = [(0,0), (1,0.5)], 
                  V3_List:Optional[List[float]] = [0.5, 0.5],
                  boundary_conditions_list:Optional[BoundaryConditionList] = None,
+                 material_properties_dict:Optional[dict]=None,
                  **kwargs):
         r'''
         Constructor of the class
@@ -118,6 +119,7 @@ class Design_LP(Design):
                          add_noise=add_noise,
                          continuity_check_mode=continuity_check_mode,
                          boundary_conditions_list=boundary_conditions_list,
+                         material_properties_dict=material_properties_dict,
                          **kwargs)
         
 
@@ -227,8 +229,10 @@ class Design_LP(Design):
         # Compute the topology optimisation matrix
         TO_mat:np.ndarray = self._topo.return_floating_topology()
 
+        x_array = np.array([self.VR, *self.V3_list])
+
         # Compute the cost of the Design
-        cost:float = evaluate_FEA_LP(x=np.array([self.VR,self.V3_list[0],self.V3_list[1]]),
+        cost:float = evaluate_FEA_LP(x=x_array,
                                     TO_mat=TO_mat,
                                     iterr = iterr,
                                     sample = sample,
@@ -241,7 +245,9 @@ class Design_LP(Design):
                                     cost_function=cost_function,
                                     penalty_factor=penalty_factor,
                                     boundary_conditions=self.boundary_conditions_list,
-                                    mode=self.mode)
+                                    mode=self.mode,
+                                    material_properties_dict=self.material_properties_dict.copy(),
+                                    interpolation_points=self.interpolation_points)
             
         # Update the cost
         #self.__score_FEA = cost
@@ -636,8 +642,8 @@ class Design_LP(Design):
         
         if self.mode == "TO+LP":
                 # Split the array into two
-                newArr:np.ndarray = new_properties_array_mod[0:new_properties_array_mod.size-3]
-                otherArr:np.ndarray = new_properties_array_mod[new_properties_array_mod.size-3:
+                newArr:np.ndarray = new_properties_array_mod[0:new_properties_array_mod.size-len(self.V3_list)-1]
+                otherArr:np.ndarray = new_properties_array_mod[new_properties_array_mod.size-len(self.V3_list)-1:
                                                                new_properties_array_mod.size]
 
                 # Modify the Lamination Parameters
