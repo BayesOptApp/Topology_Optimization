@@ -14,8 +14,10 @@ import math
 from scipy import io,sparse
 from scipy import linalg as scilinalg
 from meshers.MeshGrid2D import MeshGrid2D
+from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointNeumannBC, PointDirichletBC
 from typing import Union, List, Tuple, Optional
 from .common import *
+import warnings
 
 
 
@@ -48,7 +50,15 @@ def compute_in_plane_C_matrix(E11:float,E22:float,G12:float,nu12:float)-> np.nda
     return C_mat
 
 
-def apply_BC(K:np.ndarray,F:np.ndarray,NN:int,NN_l:int,NNDOF:int)->list:
+def apply_BC(K:np.ndarray,
+             F:np.ndarray,
+             NN:int,
+             NN_l:int,
+             NNDOF:int,
+             affected_nodes_set:list,
+             blocked_dofs_set:list,
+             force_vectors_set:list,
+             bc_types:list)->list:
     '''
     Function to apply the boundary conditions on Matrices.
 
@@ -69,26 +79,71 @@ def apply_BC(K:np.ndarray,F:np.ndarray,NN:int,NN_l:int,NNDOF:int)->list:
     # For static and direct FR analyses K and F rows modified as
     # K[i] = [0 0 ... 1 ... 0 0 0] and F(i) = 0
 
-    for ii in range(NN):
-        # ID for every NGDOF DoF (starts from 0)
-        iNNDOF = ii*NNDOF
+    # for ii in range(NN):
+    #     # ID for every NGDOF DoF (starts from 0)
+    #     iNNDOF = ii*NNDOF
         
-        # Cantilever BC
-        # If the node is on the left edge
-        if (np.fmod(ii+1,NN_l) == 1):
-            for jj in range(NNDOF):
-                    K[iNNDOF+jj,:] = 0.0
-                    #K[:,iNNDOF+jj] = 0.0
-                    K[iNNDOF+jj,iNNDOF+jj] = 1.0
-                    F[iNNDOF+jj] = 0.0
+    #     # Cantilever BC
+    #     # If the node is on the left edge
+    #     if (np.fmod(ii+1,NN_l) == 1):
+    #         for jj in range(NNDOF):
+    #                 K[iNNDOF+jj,:] = 0.0
+    #                 K[:,iNNDOF+jj] = 0.0
+    #                 K[iNNDOF+jj,iNNDOF+jj] = 1.0
+    #                 #F[iNNDOF+jj] = 0.0
+
+    #         # Node IDs where BCs are specified
+    #         BCiN.append(ii)
+    #         NBcN = NBcN+1
+
+    for ii in range(len(bc_types)):
+        # Get the affected node
+        affected_nodes = affected_nodes_set[ii]
+        
+        for affected_node in affected_nodes:
+            iNNDOF = affected_node*NNDOF
+            # If the boundary condition is a Dirichlet BC
+            if bc_types[ii] == 'Point Dirichlet' or bc_types[ii] == 'Line Dirichlet':
+                # Get the blocked DoFs for this boundary condition
+                blocked_dofs = tuple(blocked_dofs_set[ii])
+
+                # Loop over the blocked DoFs
+
+                for jj in blocked_dofs:
+                    K[iNNDOF+jj-1,:] = 0.0
+                    K[:,iNNDOF+jj-1] = 0.0
+                    K[iNNDOF+jj-1,iNNDOF+jj-1] = 1.0
+                    #F[iNNDOF+jj,0] = 0.0
+            
+            # If the boundary condition is a Neumann BC
+            elif bc_types[ii] == 'Point Neumann':
+
+                # Get the force vector for this boundary condition
+                force_vector = force_vectors_set[ii]
+
+                # Apply the force vector to the global force vector
+                for jj in range(NNDOF):
+                    F[iNNDOF+jj,0] += force_vector[jj]
+                    
+            
+            else:
+                raise ValueError(f"Unknown boundary condition type: {bc_types[ii]}")
 
             # Node IDs where BCs are specified
-            BCiN.append(ii)
-            NBcN = NBcN+1
+            BCiN.append(affected_node)
+            NBcN += 1
     
     return np.array(BCiN),NBcN
 
-def apply_BC_sparse(K:sparse.lil_matrix,F:sparse.lil_matrix,NN:int,NN_l:int,NNDOF:int)->list:
+def apply_BC_sparse(K:sparse.lil_matrix,
+                    F:sparse.lil_matrix,
+                    NN:int,
+                    NN_l:int,
+                    NNDOF:int,
+                    affected_nodes_set:list,
+                    blocked_dofs_set:list,
+                    force_vectors_set:list,
+                    bc_types:list)->list:
     '''
     Function to apply the boundary conditions on Matrices.
 
@@ -109,22 +164,60 @@ def apply_BC_sparse(K:sparse.lil_matrix,F:sparse.lil_matrix,NN:int,NN_l:int,NNDO
     # For static and direct FR analyses K and F rows modified as
     # K[i] = [0 0 ... 1 ... 0 0 0] and F(i) = 0
 
-    for ii in range(NN):
-        # ID for every NGDOF DoF (starts from 0)
-        iNNDOF = ii*NNDOF
+    # for ii in range(NN):
+    #     # ID for every NGDOF DoF (starts from 0)
+    #     iNNDOF = ii*NNDOF
         
-        # Cantilever BC
-        # If the node is on the left edge
-        if (np.fmod(ii+1,NN_l) == 1):
-            for jj in range(NNDOF):
-                    K[iNNDOF+jj,:] = 0.0
-                    #K[:,iNNDOF+jj] = 0.0
-                    K[iNNDOF+jj,iNNDOF+jj] = 1.0
-                    F[iNNDOF+jj] = 0.0
+    #     # Cantilever BC
+    #     # If the node is on the left edge
+    #     if (np.fmod(ii+1,NN_l) == 1):
+    #         for jj in range(NNDOF):
+    #                 K[iNNDOF+jj,:] = 0.0
+    #                 K[:,iNNDOF+jj] = 0.0
+    #                 K[iNNDOF+jj,iNNDOF+jj] = 1.0
+    #                 #F[iNNDOF+jj] = 0.0
+
+    #         # Node IDs where BCs are specified
+    #         BCiN.append(ii)
+    #         NBcN = NBcN+1
+
+    # Loop over the bc_types and apply the boundary conditions
+    for ii in range(len(bc_types)):
+        # Get the affected node
+        affected_nodes = affected_nodes_set[ii]
+        
+        for affected_node in affected_nodes:
+            iNNDOF = affected_node*NNDOF
+            # If the boundary condition is a Dirichlet BC
+            if bc_types[ii] == 'Point Dirichlet' or bc_types[ii] == 'Line Dirichlet':
+                # Get the blocked DoFs for this boundary condition
+                blocked_dofs = tuple(blocked_dofs_set[ii])
+
+                # Loop over the blocked DoFs
+
+                for jj in blocked_dofs:
+                    K[iNNDOF+jj-1,:] = 0.0
+                    K[:,iNNDOF+jj-1] = 0.0
+                    K[iNNDOF+jj-1,iNNDOF+jj-1] = 1.0
+                    #F[iNNDOF+jj,0] = 0.0
+            
+            # If the boundary condition is a Neumann BC
+            elif bc_types[ii] == 'Point Neumann':
+
+                # Get the force vector for this boundary condition
+                force_vector = force_vectors_set[ii]
+
+                # Apply the force vector to the global force vector
+                for jj in range(NNDOF):
+                    F[iNNDOF+jj,0] += force_vector[jj]
+                    
+            
+            else:
+                raise ValueError(f"Unknown boundary condition type: {bc_types[ii]}")
 
             # Node IDs where BCs are specified
-            BCiN.append(ii)
-            NBcN = NBcN+1
+            BCiN.append(affected_node)
+            NBcN += 1
     
     return np.array(BCiN),NBcN
 
@@ -307,18 +400,21 @@ def retrieve_Strain_Stress(NN:int,NN_l:int,NN_h:int,E:np.ndarray,
     
     return epsxxN, epsyyN, epsxyN, epsxxE, epsyyE, epsxyE, sigxxN, sigyyN, sigxyN, vonMisesN, sigxxE, sigyyE, sigxyE, vonMisesE
 
-
-
 class Mesh:
     r'''
     Mesh Class definition
     '''
-    def __init__(self,E11:float=E11_DEFAULT,E22:float=E22_DEFAULT,
-                 G12:float=G12_DEFAULT,nu12:float=NU12_DEFAULT,
+    def __init__(self,
+                 boundary_conditions_list:BoundaryConditionList,
+                 E11:Optional[float]=E11_DEFAULT,
+                 E22:Optional[float]=E22_DEFAULT,
+                 G12:Optional[float]=G12_DEFAULT,
+                 nu12:Optional[float]=NU12_DEFAULT,
                  length:float=LENGTH_DEFAULT,height:float=HEIGHT_DEFAULT,
                  element_length:float=ELEMENT_LENGTH_DEFAULT,
                  element_height:float=ELEMENT_HEIGHT_DEFAULT,
-                 SRI:bool=True, sparse_matrices:bool=False) -> None:
+                 SRI:bool=True, 
+                 sparse_matrices:bool=False) -> None:
         
         # Build the meshgrid
         self.__mesh_grid:MeshGrid2D = MeshGrid2D(length=length,height=height,
@@ -330,6 +426,9 @@ class Mesh:
         self.__E22:float = E22
         self.__G12:float = G12
         self.__nu12:float = nu12
+
+        # Check if the boundary conditions are compatible with the mesh grid
+        self.__check_boundary_conditions_compliance__(boundary_conditions_list=boundary_conditions_list)
 
         # Initialise Global Matrices for finite element method
         self._non_zero_matrices:bool = False
@@ -445,7 +544,96 @@ class Mesh:
             self.__dSdxy1:np.ndarray = np.zeros((1,2,4,1))
             self.__dSdxy1[0,:,:,0] = self.__invJacob[:,:] @ self.__dSdksieta1[:,:,0]
 
-    
+    def __check_boundary_conditions_compliance__(self, 
+            boundary_conditions_list:BoundaryConditionList) -> None:
+        r"""
+        This function checks if the boundary conditions provided in the
+        `boundary_conditions_list` are compatible with the mesh grid.
+        It verifies that the boundary conditions affect the nodes of the mesh
+        """
+
+        
+        bc_types = []
+        affected_nodes_set = []
+        blocked_dofs_set = []
+        force_vectors_set = []
+
+
+        # Loop through each boundary condition in the list
+        for boundary_condition in boundary_conditions_list:
+            # Check if the boundary condition is a LineDirichletBC
+            if isinstance(boundary_condition, LineDirichletBC):
+                # Get the affected nodes from the boundary condition
+                affected_nodes = boundary_condition.get_affected_nodes(self.MeshGrid)
+
+                if len(affected_nodes) == 0:
+                    warnings.warn(
+                        f"No nodes affected by boundary condition {boundary_condition}. "
+                        "Please check the boundary condition definition."
+                    )
+                    continue
+                # Check if the affected nodes are within the mesh grid
+                for node in affected_nodes:
+                    if node < 0 or node >= self.MeshGrid.grid_point_number_total:
+                        raise ValueError(f"Node {node} in boundary condition {boundary_condition} is out of bounds of the mesh grid.")
+                
+                affected_nodes_set.append(affected_nodes)
+                blocked_dofs_set.append(boundary_condition.blocked_dof)
+                force_vectors_set.append(None)
+                bc_types.append("Line Dirichlet")
+                
+            
+            # Check if the boundary condition is a PointNeumannBC
+            elif isinstance(boundary_condition, PointNeumannBC):
+                # Get the affected nodes from the boundary condition
+                affected_nodes = boundary_condition.get_affected_nodes(self.MeshGrid)
+
+                if len(affected_nodes) == 0:
+                    warnings.warn(
+                        f"No nodes affected by boundary condition {boundary_condition}. "
+                        "Please check the boundary condition definition."
+                    )
+                    continue
+
+                # Check if the affected nodes are within the mesh grid
+                for node in affected_nodes:
+                    if node < 0 or node >= self.MeshGrid.grid_point_number_total:
+                        raise ValueError(f"Node {node} in boundary condition {boundary_condition} is out of bounds of the mesh grid.")
+                
+                affected_nodes_set.append(affected_nodes)
+                force_vectors_set.append(boundary_condition.force_vector)
+                blocked_dofs_set.append(None)
+                bc_types.append("Point Neumann")
+            
+            elif isinstance(boundary_condition, PointDirichletBC):
+                # Get the affected nodes from the boundary condition
+                affected_nodes = boundary_condition.get_affected_nodes(self.MeshGrid)
+
+                if len(affected_nodes) == 0:
+                    warnings.warn(
+                        f"No nodes affected by boundary condition {boundary_condition}. "
+                        "Please check the boundary condition definition."
+                    )
+                    continue
+
+                # Check if the affected nodes are within the mesh grid
+                for node in affected_nodes:
+                    if node < 0 or node >= self.MeshGrid.grid_point_number_total:
+                        raise ValueError(f"Node {node} in boundary condition {boundary_condition} is out of bounds of the mesh grid.")
+                
+                affected_nodes_set.append(affected_nodes)
+                blocked_dofs_set.append(boundary_condition.blocked_dof)
+                force_vectors_set.append(None)
+                bc_types.append("Point Dirichlet")
+        
+        # Append everything as attributes of the mesh
+        self._affected_nodes_set:List[List[int]] = affected_nodes_set
+        self._blocked_dofs_set:List[List[int]] = blocked_dofs_set
+        self._force_vectors_set:List[List[float]] = force_vectors_set
+        self._bc_types:List[str] = bc_types
+
+
+        
     def __fill_sparse_pattern__(self,nn:int)->None:
         '''
         This function helps filling the sparse pattern for sparse matrices in order
@@ -736,10 +924,10 @@ class Mesh:
                 Ke = Ke + thickness*self.get_determinant_Jacobian_4()[0,gqp]*GQ_WEIGHT_4[gqp] * (B.transpose() @ C @ B)
 
                 # Elemental membrane mass matrix
-                S:np.ndarray = np.array([[self.__S4[0,gqp], 0, self.__S4[1,gqp], 0,self.__S4[2,gqp], 0, self.__S4[3,gqp], 0],
-                     [0, self.__S4[0,gqp], 0, self.__S4[1,gqp], 0, self.__S4[2,gqp], 0, self.__S4[3,gqp]]])
+                #S:np.ndarray = np.array([[self.__S4[0,gqp], 0, self.__S4[1,gqp], 0,self.__S4[2,gqp], 0, self.__S4[3,gqp], 0],
+                #     [0, self.__S4[0,gqp], 0, self.__S4[1,gqp], 0, self.__S4[2,gqp], 0, self.__S4[3,gqp]]])
 
-                Me = Me + (rho*thickness*self.get_determinant_Jacobian_4()[0,gqp] * GQ_WEIGHT_4[gqp])*(S.transpose() @ S)
+                #Me = Me + (rho*thickness*self.get_determinant_Jacobian_4()[0,gqp] * GQ_WEIGHT_4[gqp])*(S.transpose() @ S)
             
             if self.sparse_matrices:
                 assemble_global_spmatrices(Ke,Me,Fe,self.__K,self.__M,self.__F,el,self.MeshGrid.E,
@@ -774,18 +962,26 @@ class Mesh:
 
             # Function to apply the boundary conditions
             BCiN,NBcN = apply_BC(self.__K,self.__F,self.__mesh_grid.grid_point_number_total,
-                                self.__mesh_grid.grid_point_number_X,NUMBER_OF_NODAL_DOF)
+                                self.__mesh_grid.grid_point_number_X,NUMBER_OF_NODAL_DOF,
+                                self._affected_nodes_set,
+                                self._blocked_dofs_set,
+                                self._force_vectors_set,
+                                self._bc_types)
         else:
             # Function to apply the boundary conditions
             BCiN,NBcN = apply_BC_sparse(self.__K,self.__F,self.__mesh_grid.grid_point_number_total,
-                                self.__mesh_grid.grid_point_number_X,NUMBER_OF_NODAL_DOF)
+                                self.__mesh_grid.grid_point_number_X,NUMBER_OF_NODAL_DOF,
+                                self._affected_nodes_set,
+                                self._blocked_dofs_set,
+                                self._force_vectors_set,
+                                self._bc_types)
         
         # Apply vertical load on middle right node
         self.__F[NUMBER_OF_NODAL_DOF*self.__mesh_grid.grid_point_number_X*
                math.ceil((self.__mesh_grid.grid_point_number_Y)/2)-1,0] = -0.1
 
 
-    def compute_displacements(self)->list:
+    def compute_displacements(self)->Tuple[np.ndarray,float,float]:
 
         if not self._non_zero_matrices:
             return np.zeros_like(self.__F),0,0
@@ -797,12 +993,15 @@ class Mesh:
             # Solve the system
 
             if not self.sparse_matrices:
-                u_vec:np.ndarray = scilinalg.solve(self.__K,self.__F,assume_a='gen',overwrite_a=True,
+                u_vec:np.ndarray = scilinalg.solve(self.__K,self.__F,assume_a='sym',overwrite_a=True,
                                                    overwrite_b=True)
             else:
                 K_conv:sparse.csr_matrix = self.__K.tocsr()
                 F_conv:sparse.csr_matrix = self.__F.tocsr()
-                u_vec:np.ndarray = sparse.linalg.spsolve(K_conv,F_conv)
+
+                #breakpoint()
+                u_vec:np.ndarray = sparse.linalg.spsolve(K_conv,F_conv.todense())
+                #u_vec:np.ndarray = sparse.linalg.gmres(A=K_conv,b=F_conv,rtol=1e-7,)
 
             # Set the end value of the vector
             endd:int = u_vec.shape[0]

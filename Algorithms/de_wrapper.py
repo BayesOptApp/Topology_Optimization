@@ -1,0 +1,129 @@
+import numpy as np
+from scipy.optimize import differential_evolution, OptimizeResult
+
+from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+import ioh
+
+
+class DifferentialEvolutionWrapper:
+    def __init__(self, problem):
+        """
+        Wrapper for random search algorithm.
+
+        Args:
+            problem: An IOH problem instance with .dimension and .evaluate(x) methods.
+        """
+        self.ioh_prob = problem
+    
+    @property
+    def dim(self):
+        """
+        Returns the dimension of the problem.
+        """
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+            return self.ioh_prob.meta_data.n_variables
+        elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
+            return self.ioh_prob.meta_data.n_variables
+        else:
+            raise ValueError("Unsupported problem type.")
+    
+    @property
+    def bounds(self):
+        """
+        Returns the bounds of the problem.
+        """
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+            return [self.ioh_prob.bounds.lb[0], self.ioh_prob.bounds.ub[0]]
+        elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
+            return (-5, 5)
+        else:
+            raise ValueError("Unsupported problem type.")
+    
+    def complete_bounds(self):
+        """
+        Returns the complete bounds of the problem.
+        """
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+            return [(self.bounds[0],self.bounds[1]) for _ in range(self.dim)]
+        elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
+            return [(-5,5) for _ in range(self.dim)]
+        else:
+            raise ValueError("Unsupported problem type.")
+    
+    @property
+    def is_maximization(self)->bool:
+        """
+        Returns True if the problem is a maximization problem, False otherwise.
+        """
+        if self.ioh_prob.meta_data.optimization_type == ioh.OptimizationType.MAX:
+            return True
+        elif self.ioh_prob.meta_data.optimization_type == ioh.OptimizationType.MIN:
+            return False
+        else:
+            raise ValueError("Unsupported problem type.")
+    
+    def map_to_search_space(self, x):
+        """
+        Maps a solution to the search space of the problem.
+
+        Args:
+            x (np.ndarray): Solution vector.
+
+        Returns:
+            np.ndarray: Mapped solution.
+        """
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+            return np.clip(x, self.ioh_prob.bounds.lb[0], self.ioh_prob.bounds.ub[0])
+        elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
+            return np.clip(x, -5, 5)
+        else:
+            raise ValueError("Unsupported problem type.")
+
+
+    def __call__(self, 
+                 budget:int,
+                 popsize:int=10,
+                 random_seed:int=43,
+                 tol=0.01, 
+                 mutation=(0.5, 1), 
+                 recombination=0.7, 
+                 callback=None, 
+                 disp=False, 
+                 polish=False, 
+                 init='latinhypercube'):
+        
+        """
+        Perform random search for a given evaluation budget.
+
+        Args:
+            budget (int): Number of evaluations allowed.
+
+        Returns:
+            dict: Best solution found and its fitness.
+        """
+
+        # Compute the population size based on the budget and dimension
+    
+        if budget < popsize:
+            raise ValueError("Budget must be greater than population size.")
+        
+        maxiter = budget //  (popsize*self.dim) + 1
+
+        result:OptimizeResult = differential_evolution(
+            func=self.ioh_prob,
+            popsize=popsize,
+            bounds=self.complete_bounds(),
+            strategy='best1bin',
+            maxiter=maxiter,
+            tol=tol,
+            mutation=mutation,
+            recombination=recombination,
+            seed=random_seed,
+            callback=callback,
+            disp=disp,
+            polish=polish,
+            init=init
+             )
+        
+        return result['x'], result['fun']

@@ -142,10 +142,10 @@ def assemble_global_matrices(element_stiffness_mat:np.ndarray,
         for jj in range(NEN):
             jN = int(E[elem_pos,jj+1])
             KeNNDOF = element_stiffness_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
-            MeNNDOF = element_mass_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
+            #MeNNDOF = element_mass_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
             
             global_stiffness_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] = global_stiffness_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] + KeNNDOF
-            global_mass_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] =  global_mass_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] +  MeNNDOF
+            #global_mass_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] =  global_mass_mat[(iN)*NNDOF:(iN+1)*NNDOF,(jN)*NNDOF:(jN+1)*NNDOF] +  MeNNDOF
 
 
 def assemble_global_spmatrices(element_stiffness_mat:np.ndarray,
@@ -165,9 +165,9 @@ def assemble_global_spmatrices(element_stiffness_mat:np.ndarray,
         for jj in range(NEN):
             jN = int(E[elem_pos,jj+1])
             KeNNDOF = element_stiffness_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
-            MeNNDOF = element_mass_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
+            #MeNNDOF = element_mass_mat[(ii)*NNDOF:(ii+1)*NNDOF,(jj)*NNDOF:(jj+1)*NNDOF]
             
             for ii_ind in range(NNDOF):
                 for jj_ind in range(NNDOF):
-                    global_mass_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind] = MeNNDOF[ii_ind,jj_ind] + global_mass_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind]
+                    #global_mass_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind] = MeNNDOF[ii_ind,jj_ind] + global_mass_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind]
                     global_stiffness_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind] = KeNNDOF[ii_ind,jj_ind] + global_stiffness_mat[(iN)*NNDOF+ii_ind,(jN)*NNDOF+jj_ind]

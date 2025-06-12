@@ -266,6 +266,7 @@ def plotNodalVariables_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
                        plot_elements:bool = True,
                        linewidth:float=DEFAULT_PLOT_LINEWIDTH_ELEMENT_PLOTS,
                        image_file_format:str = DEFAULT_IMAGE_FILE_FORMAT,
+                       plot_modifier_dict:dict = None,
                        **kwargs)->None:
         
         '''
@@ -308,7 +309,16 @@ def plotNodalVariables_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         # Repair mesh
         #mesh:pyvista.PolyData = mesh.clean()
 
-
+        # Extract the dict of the plot modifier
+        if plot_modifier_dict is None:
+                rotate_bool = False
+                rotate_angle = 0.0
+        else:
+                rotate_bool = plot_modifier_dict.get("rotate",False)
+                rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
+        
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
         # Add the data to mesh
         mesh.point_data["Von_Mises_Stress"] = nodal_variable.ravel()
 
@@ -339,9 +349,12 @@ def plotNodalVariables_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
                  scalar_bar_args=sargs,
                  edge_color = "black",
                  show_edges=plot_elements, 
-                 interpolate_before_map=True, cmap="viridis",
+                 interpolate_before_map=True, 
+                 cmap="viridis",
                  line_width=linewidth, 
                  log_scale=True)
+        
+     
         
         p.background_color = 'white'
         #p.add_title('Cost:{0:.4E}'.format(cost), font='arial', color='k', font_size=22)
@@ -550,6 +563,7 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
                        plot_elements:bool = True,
                        linewidth:float=DEFAULT_PLOT_LINEWIDTH_ELEMENT_PLOTS,
                        image_file_format:str = DEFAULT_IMAGE_FILE_FORMAT,
+                       plot_modifier_dict:dict = None,
                        **kwargs)->None:
         
         '''
@@ -594,8 +608,19 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         # Generate the mesh
         mesh:pyvista.PolyData = pyvista.PolyData(verts,faces)
 
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
+
         # Repair mesh
         #mesh:pyvista.PolyData = mesh.clean()
+
+        # Extract the dict of the plot modifier
+        if plot_modifier_dict is None:
+                rotate_bool = False
+                rotate_angle = 0.0
+        else:
+                rotate_bool = plot_modifier_dict.get("rotate",False)
+                rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
 
         # Add the data to the mesh
         mesh.cell_data["V1"] = V1_e[mat_ind].ravel()
