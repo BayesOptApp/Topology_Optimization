@@ -125,6 +125,22 @@ class SCBO_Wrapper:
             return self.ioh_prob(x.detach().cpu().numpy())
         else:
             raise ValueError("Unsupported problem type.")
+    
+    def _set_all_seeds(self, seed: int = 0):
+        r"""
+        Set all random seeds for reproducibility.
+        
+        Args
+        ----------
+        - seed : `Optional[int]`: The seed to set for all random number generators. Default is 0.
+        
+        """
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     
     def _get_initial_points(self,
@@ -211,6 +227,11 @@ class SCBO_Wrapper:
                  random_seed:int=0, 
                  n_DoE:Optional[int]=10,
                  min_length:Optional[float]=0.5**7):
+        
+
+        # Set the random seed for reproducibility
+        self._set_all_seeds(seed=random_seed)
+
         # Generate initial data
         if n_DoE is None:
             n_DoE = self.dim * 3

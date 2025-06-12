@@ -17,7 +17,8 @@ ALLOWED_NUMBERS = [*range(1, len(DEFAULT_PROBLEM_NAMES) + 1)]
 def get_problem(problem_id:Union[str,int], 
                 dimension:int, 
                 plot_stresses:Optional[bool]=False,
-                run_number:Optional[int] = 1)->Design_IOH_Wrapper:
+                run_number:Optional[int] = 1,
+                penalty_function:Optional[bool]=True)->Design_IOH_Wrapper:
     """
     Dynamically imports and returns a problem class from the problems package.
 
@@ -27,6 +28,7 @@ def get_problem(problem_id:Union[str,int],
         - dimension (`int`): The dimension of the problem.
         - plot_stresses (`Optional[bool]`): Whether to plot stresses for the problem.
         - run_number (`Optional[int]`): The run number for the problem instance.
+        - penalty_function (`Optional[bool]`): Whether to apply a penalty function to the problem.
 
     Returns:
         - `Design_IOH_Wrapper`: An instance of the problem class.
@@ -63,15 +65,17 @@ def get_problem(problem_id:Union[str,int],
     else:
         raise ValueError(f"Unknown problem name: {problem_name}")
     
-    # Convert the first two constraints to a not
+    # Convert the first two constraints to HIDDEN constraints
     problem.convert_defined_constraint_to_type(0,2) # Dirichlet
     problem.convert_defined_constraint_to_type(1,2) # Neumann
 
-    # Convert connectivity to a Hard constraint
+    # Convert connectivity to HIDDEN constraint
     problem.convert_defined_constraint_to_type(2,2) # Connectivity
 
-    # Convert volume constraint soft
-    problem.convert_defined_constraint_to_type(3,3) # Volume
+    if penalty_function:
+        problem.convert_defined_constraint_to_type(3,3) # Volume
+    else:
+        problem.convert_defined_constraint_to_type(3,1) # Volume without penalty
 
 
     return problem

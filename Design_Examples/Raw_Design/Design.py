@@ -147,8 +147,7 @@ class Design:
         ly:float = nely/nmmcsy
         angle:float = math.atan2(ly,lx)
         length:float = math.sqrt(lx**2.0 + ly**2.0)
-        thickness:float = max([1.0, 0.5*self.nelx*self.nely/
-                                    (2*self.__nmmcsx*self.__nmmcsy*length)])
+        thickness:float = max([1.0, np.sqrt(lx*ly)])
 
         
         # Store the references as class properties
@@ -425,7 +424,7 @@ class Design:
         ## TODO: Set the effect of this normalization
         
         #self.__length_norm:float = 4*self.__default_length
-        self._thickness_norm:float = 4*self.__default_thickness
+        self._thickness_norm:float = self.__default_thickness
 
         if self.__symmetry_condition == True:
             self._length_norm:float = math.sqrt(self.__nelx**2+(self.__nely/2)**2)

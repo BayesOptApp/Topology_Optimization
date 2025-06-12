@@ -69,13 +69,8 @@ class HEBO_Wrapper:
                 'ub': self.bounds[1]
             })
         
-        if self.ioh_problem.mode == "TO+LP":
-            
-            space[-3]['name'] = 'VR'
-            space[-2]['name'] = 'V3_1'
-            space[-1]['name'] = 'V3_2'
-
         return space
+        
     
     # Define the objective function
     def objective(self,

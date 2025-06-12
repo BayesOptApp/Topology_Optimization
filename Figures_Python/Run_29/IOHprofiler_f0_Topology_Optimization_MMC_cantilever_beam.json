@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 0, 
+	"function_name": "Topology_Optimization_MMC_cantilever_beam", 
+	"maximization": false, 
+	"algorithm": {"name": "CMA-ES", "info": "algorithm_info"},
+	"attributes": ["evaluations", "raw_y", "current_y", "raw_y_best", "current_y_best", "violation", "penalty", "n_evals"],
+	"scenarios": [
+		{"dimension": 15,
+		"path": "data_f0_Topology_Optimization_MMC_cantilever_beam/IOHprofiler_f0_DIM15.dat",
+		"runs": [
+			{"instance": 0, "evals": 839, "best": {"evals": 613, "y": 0.2476349361279352, "x": [0.06717220847168015, 0.9999005026904545, 0.0020324019208758336, 0.9819479083909463, 0.9769987892821064, 0.8690966921831581, 0.9588971429564446, 0.00711699700748362, 0.8823039261098493, 0.5998399588072225, 0.9956413814839299, 0.7752448900333626, 0.5656231319314045, 0.3978290750756066, 0.09764072766887699]}}
+		]}
+	]
+}

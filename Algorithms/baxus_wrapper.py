@@ -144,6 +144,22 @@ class BAxUS_Wrapper:
             2 * sobol.draw(n=n_pts).to(dtype=dtype, device=device) - 1
         )  # points have to be in [-1, 1]^d
         return X_init
+    
+    def _set_all_seeds(self, seed: int = 0):
+        r"""
+        Set all random seeds for reproducibility.
+        
+        Args
+        ----------
+        - seed : `Optional[int]`: The seed to set for all random number generators. Default is 0.
+        
+        """
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     def _create_candidate(
             self,
@@ -236,6 +252,9 @@ class BAxUS_Wrapper:
                  num_restarts:int=10,
                  raw_samples:int=4,
                  acquisition_function:str="ts",):
+        
+        # Set the random seed for reproducibility
+        self._set_all_seeds(random_seed)
         
         # Generate initial data
         if n_DoE is None:
