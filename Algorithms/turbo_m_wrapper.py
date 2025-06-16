@@ -323,3 +323,7 @@ class Turbo_M_Wrapper:
                 print(f"TR-{i} | {train_X[i].shape[0]}) Best value: {states[i].best_value:.2e}, TR length: {states[i].length:.2e}")
 
                 n_evals += X_next.shape[0]
+
+                if n_evals > total_budget:
+                    print(f"Total budget of {total_budget} evaluations reached.")
+                    break

@@ -312,6 +312,10 @@ class SCBO_Wrapper:
                 # Update the function evaluations counter
                 n_evals += X_next.shape[0]
 
+                if n_evals > total_budget:
+                    print(f"Total budget of {total_budget} evaluations reached.")
+                    break
+
                 # Evaluate both the objective and constraints for the selected candidates
                 Y_next = torch.tensor([-1*self.eval_objective(x) for x in X_next], 
                                     dtype=dtype, 

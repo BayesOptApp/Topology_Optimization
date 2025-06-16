@@ -14,6 +14,23 @@ def args_parser(args:Optional[list]=None)-> argparse.Namespace:
         help="Choose which wrapper to run.",
         default="IOH_Wrapper_LP"
     )
+
+    parser.add_argument(
+        "--material_definition",
+        type=str,
+        default="orthotropic",
+        choices=["orthotropic", "isotropic"],
+        help="Material definition to use in the problem.",
+    )
+
+    parser.add_argument(
+        "--n_master_nodes",
+        type=int,
+        default=2,
+        choices=[2,3],
+        help="Number of master nodes for Lamination Parameter interpolation in the problem."
+    )
+
     parser.add_argument(
         "--algorithm",
         type=str,
@@ -162,8 +179,35 @@ if __name__ == "__main__":
     batch_size = argspace.batch_size
     sigma_0 = argspace.sigma_0
     budget = argspace.budget
+    material_definition = argspace.material_definition
+    n_master_nodes = argspace.n_master_nodes
 
     print(f"Running with parameters: {argspace}")
+
+    # Set the material definition dictionary based on the selected material definition
+    if  material_definition == "orthotropic":
+        material_definition_dict = {
+            "E11": 25,  # Young's modulus in x-direction
+            "E22": 1,   # Young's modulus in y-direction
+            "nu12": 0.25,  # Poisson's ratio
+            "G12": 0.5,  # Shear modulus
+        }
+    
+    else:
+        material_definition_dict = {
+            "E11": 13,  # Young's modulus in x-direction
+            "E22": 13,  # Young's modulus in y-direction
+            "nu": 0.25,  # Poisson's ratio
+            "G12": 13/(1+0.25),   # Shear modulus
+        }
+    
+
+    # Set the master nodes setup based on the selected number of master nodes
+    if n_master_nodes == 2:
+        interp_points = [(0.0,0.0),(1.0,0.5)]
+    elif n_master_nodes == 3:
+        interp_points = [(0.0,0.0),(1.0,0.5),(0.5,0.0)]
+    
 
 
     # Create the problem instance based on the selected wrapper
@@ -182,6 +226,7 @@ if __name__ == "__main__":
             V3_list=[0, 0],  # -0.1, -0.4
             continuity_check_mode=continuity_check_mode,
             plot_variables=plot_variables,
+            interpolation_points=interp_points,
         )
     else:
         ioh_prob = Design_IOH_Wrapper(
@@ -193,10 +238,9 @@ if __name__ == "__main__":
             nelx=nelx,
             nely=nely,
             volfrac=volfrac,
-            VR=0.5,
-            V3_list=[0, 0],  # -0.1, -0.4
             continuity_check_mode=continuity_check_mode,
             plot_variables=plot_variables,
+            material_properties_dict=material_definition_dict
         )
     
     r"""
@@ -288,6 +332,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         algorithm(budget=budget,
                   random_seed=random_seed,
                   n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        
     elif algorithm_name == "Vanilla-BO":
         from Algorithms.vanilla_bo_wrapper import VanillaBO
         # Initialize the VanillaBO algorithm with the problem instance and random seed
@@ -296,7 +341,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
                               num_restarts=5,
                               batch_size=batch_size)
         # Run the algorithm with the specified parameters
-        algorithm(budget=budget,
+        algorithm(total_budget=budget,
                   random_seed=random_seed,
                   n_DoE=n_doe_mult*ioh_prob.problem_dimension)
         
@@ -306,6 +351,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         # Run the algorithm with the specified parameters
         algorithm(budget=budget,
                   random_seed=random_seed)
+        
     elif algorithm_name == "Random-Search":
         from Algorithms.random_search_wrapper import RandomSearchWrapper
         algorithm = RandomSearchWrapper(ioh_prob)

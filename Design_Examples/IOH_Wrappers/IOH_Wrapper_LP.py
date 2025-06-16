@@ -59,7 +59,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  nmmcsx:int, 
                  nmmcsy:int, 
                  nelx:int, 
-                 nely:int, 
+                 nely:int,
+                 instance:int = 0, 
                  VR: float= 0.5, 
                  V3_list:List[float] = [0.0, 0.0],
                  volfrac:float = 0.5,
@@ -143,11 +144,18 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         bounds = ioh.iohcpp.RealBounds(self.problem_dimension, 0.0, 1.0)
         optimum = ioh.iohcpp.RealSolution([0]* self.problem_dimension, 0.0)
 
+        if prob_aux_name == "":
+            # If the problem auxiliary name is not set, then use the problem name
+            partial_new_name = self.problem_name
+        else:
+            # If the problem auxiliary name is set, then use it
+            partial_new_name =  self.problem_name + "_" + prob_aux_name
+
         # Initialize the IOH class dependency
         ioh.problem.RealSingleObjective.__init__(self,
-            name=self.problem_name()+ "_" + prob_aux_name,
+            name= partial_new_name,
             n_variables=self.problem_dimension,
-            instance=0,
+            instance=instance,
             is_minimization=True,
             bounds= bounds,
             optimum=optimum
@@ -452,6 +460,58 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             return ioh.ConstraintEnforcement.HARD
         elif type_int ==5:
             return ioh.ConstraintEnforcement.OVERRIDE
+    
+    def change_values_of_MMCs_from_unscaled_array(self, samp_array:np.ndarray,
+                                                  tol:float = 0.5, min_thickness:float = 1.0,
+                                                  repair_level:int=2,**kwargs)->None:
+        '''
+        Given an array of values (in the same format as the array of properties)
+        change the values of each MMC based on the values of the received array
+        by parameter
+
+        Inputs:
+        - samp_array: array with new values (result from optimisation/modification process)
+        - repair_level: level of repair desired in case the parameters given on the array
+                        lie outside the admissible range
+        - kwargs: keyword arguments (tolerance, min_thickness)
+        '''
+
+        if self._zero_valued== True:
+            self._zero_valued = False
+        
+        # Check if the repair level is an acceptable value
+        if not (repair_level ==0 or repair_level == 1 or repair_level == 2):
+            raise ValueError("The repair level should be an integer equal to 0, 1 or 2")
+
+        # Check the sample array has the number of elements required to modify all the properties
+        # of each of the MMCs
+
+        samp_array_manip:np.ndarray = samp_array.ravel()
+
+        # Check if the array contains all the required number of attributes to modify each MMC
+        if samp_array_manip.size != (5*len(self.list_of_MMC)):
+            raise AttributeError("The size of the array does not correspond" 
+                                 + " to the total number of parameters of each MMC")
+        
+
+        for ii in range(0,len(samp_array_manip),5):
+            jj:int = math.floor(ii/5)
+
+            curMMC:MMC = self.list_of_MMC[jj]
+
+            # Change the values
+            curMMC.change_pos_X_from_scaled_value(samp_array_manip[ii],self._pos_X_norm)
+            curMMC.change_pos_Y_from_scaled_value(samp_array_manip[ii+1],self._pos_Y_norm)
+            curMMC.change_angle_from_scaled_value(samp_array_manip[ii+2],self._angle_norm)
+            curMMC.change_length_from_scaled_value(samp_array_manip[ii+3],self._length_norm)
+            curMMC.change_thickness_from_scaled_value(samp_array_manip[ii+4],self._thickness_norm)
+            
+            if repair_level ==1 or repair_level == 2:
+                curMMC.repair_MMC(self.nelx,self.nely,repair_level=repair_level,
+                                  min_thickness=min_thickness,tol=tol)
+        
+        # Update the Topology
+        self._topo = self._topo.from_floating_array(self._density_mapping(self.E0,self.Emin))
         
 
     def convert_defined_constraint_to_type(self, iddx:int,new_type:int)->None:

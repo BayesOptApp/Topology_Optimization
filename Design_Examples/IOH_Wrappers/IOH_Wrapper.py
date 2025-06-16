@@ -59,6 +59,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
                  nmmcsy:int, 
                  nelx:int, 
                  nely:int, 
+                 instance:int = 0,
                  volfrac:float = 0.5,
                  symmetry_condition:bool = False, 
                  scalation_mode:str = "unitary",  
@@ -136,11 +137,19 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
         bounds = ioh.iohcpp.RealBounds(self.problem_dimension, 0.0, 1.0)
         optimum = ioh.iohcpp.RealSolution([0]* self.problem_dimension, 0.0)
 
+        if prob_aux_name == "":
+            # If the problem auxiliary name is not set, then use the problem name
+            partial_new_name = self.problem_name
+        else:
+            # If the problem auxiliary name is set, then use it
+            partial_new_name =  self.problem_name + "_" + prob_aux_name
+   
+
         # Initialize the IOH class dependency
         super(Design,self).__init__(
-            name=self.problem_name()+ "_" + prob_aux_name,
+            name=partial_new_name,
             n_variables=self.problem_dimension,
-            instance=0,
+            instance=instance,
             is_minimization=True,
             bounds= bounds,
             optimum=optimum

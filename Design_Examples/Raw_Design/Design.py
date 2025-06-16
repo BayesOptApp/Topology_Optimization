@@ -893,7 +893,7 @@ class Design:
     def nely(self)->int:
         return self.__nely
     
-
+    @property
     def problem_name(self)->str:
         r"""
             This function returns the Full_Name of the problem given the 

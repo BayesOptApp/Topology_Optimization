@@ -608,8 +608,6 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         # Generate the mesh
         mesh:pyvista.PolyData = pyvista.PolyData(verts,faces)
 
-        if rotate_bool:
-                mesh.rotate_z(rotate_angle, inplace=True)
 
         # Repair mesh
         #mesh:pyvista.PolyData = mesh.clean()
@@ -621,6 +619,9 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         else:
                 rotate_bool = plot_modifier_dict.get("rotate",False)
                 rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
+        
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
 
         # Add the data to the mesh
         mesh.cell_data["V1"] = V1_e[mat_ind].ravel()

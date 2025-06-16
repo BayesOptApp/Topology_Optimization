@@ -362,6 +362,10 @@ class BAxUS_Wrapper:
                     f"iteration {len(self.X_baxus_input)}, d={len(self.X_baxus_target.T)})  Best value: {state.best_value:.3}, TR length: {state.length:.3}"
                 )
 
+                if n_evals > total_budget:
+                    print(f"Total budget of {total_budget} evaluations reached.")
+                    break
+
                 if state.restart_triggered:
                     state.restart_triggered = False
                     print("increasing target space")

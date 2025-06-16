@@ -137,7 +137,7 @@ class HEBO_Wrapper:
                 scramble_seed=self.random_seed,
         )
 
-        for i in range(self.budget):
+        for i in range(self.budget// self.batch_size):
             rec = opt.suggest(n_suggestions=self.batch_size)
             y = self.objective(rec)
             opt.observe(rec, y)

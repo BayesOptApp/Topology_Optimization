@@ -1,10 +1,28 @@
 import numpy as np
 from scipy.optimize import differential_evolution, OptimizeResult
+from functools import partial
 
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 import ioh
 
+# def the_callback(*args, **kwargs):
+#     """
+#     Callback function to monitor the optimization process.
+    
+#     Args:
+#     ------------------
+#         - intermediate_result (OptimizeResult): Intermediate result of the optimization process.
+#         - budget (int): Maximum number of function evaluations allowed.
+#     """
+
+#     budget = kwargs.get('budget', 1000)  # Default budget if not provided
+#     intermediate_result = OptimizeResult(args[0][0],  # The first argument is the intermediate result
+
+#     if intermediate_result['nfev'] > budget:
+#         raise StopIteration(
+#             "Maximum number of function evaluations exceeded.")
+    
 
 class DifferentialEvolutionWrapper:
     def __init__(self, problem):
@@ -88,9 +106,9 @@ class DifferentialEvolutionWrapper:
                  tol=0.01, 
                  mutation=(0.5, 1), 
                  recombination=0.7, 
-                 callback=None, 
                  disp=False, 
-                 polish=False, 
+                 polish=False,
+                 callback=None,
                  init='latinhypercube'):
         
         """
@@ -108,7 +126,8 @@ class DifferentialEvolutionWrapper:
         if budget < popsize:
             raise ValueError("Budget must be greater than population size.")
         
-        maxiter = budget //  (popsize*self.dim) + 1
+        maxiter = budget //  (popsize*self.dim) 
+
 
         result:OptimizeResult = differential_evolution(
             func=self.ioh_prob,
@@ -120,10 +139,10 @@ class DifferentialEvolutionWrapper:
             mutation=mutation,
             recombination=recombination,
             seed=random_seed,
-            callback=callback,
             disp=disp,
             polish=polish,
-            init=init
+            init=init,
+            callback=callback,
              )
         
         return result['x'], result['fun']

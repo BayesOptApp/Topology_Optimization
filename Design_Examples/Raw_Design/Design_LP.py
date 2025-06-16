@@ -269,21 +269,41 @@ class Design_LP(Design):
         if isinstance(new_mode,str):
             if new_mode == "TO" or new_mode =="TO+LP" or new_mode =="LP":
                 self.__mode = new_mode
+
+            # Change the name of the problem given the mode
+            if new_mode == "TO":
+                self.problem_name = "Topology_Optimization_Without_Lamination_Parameters"
+            elif new_mode == "TO+LP":
+                self.problem_name = "Topology_Optimization_With_Lamination_Parameters"
+            elif new_mode == "LP":
+                self.problem_name = "Lamination_Parameters_Optimization"
+
         else:
             raise ValueError("The mode should be a string value")
     
-
+    @property
     def problem_name(self)->str:
         r"""
             This function returns the Full_Name of the problem given the 
             mode
         """
-        if self.mode == "TO":
-            return "Topology_Optimization_Without_Lamination_Parameters"
-        elif self.mode == "TO+LP":
-            return "Topology_Optimization_With_Lamination_Parameters"
-        elif self.mode == "LP":
-            return "Lamination_Parameters Optimization"
+        return self.__problem_name
+    
+    @problem_name.setter
+    def problem_name(self,new_problem_name:str)->None:
+        r"""
+            This function sets the Full_Name of the problem given the
+            mode
+        """
+
+        DEFAULT_PROBLEM_NAMES = ("Topology_Optimization_Without_Lamination_Parameters",
+                                 "Topology_Optimization_With_Lamination_Parameters",
+                                 "Lamination_Parameters_Optimization")
+        
+        if new_problem_name in DEFAULT_PROBLEM_NAMES:
+            self.__problem_name = new_problem_name
+        else:
+            raise ValueError("The problem name should be one of the following: " + str(DEFAULT_PROBLEM_NAMES))
         
     @property
     def VR(self)->float:
