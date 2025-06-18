@@ -2,6 +2,8 @@ import math
 import os
 import warnings
 
+import time
+
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 import ioh
@@ -59,6 +61,7 @@ class BAxUS_Wrapper:
         self.ioh_prob = ioh_prob
         self.batch_size = batch_size
         self.max_cholesky_size = max_cholesky_size
+        self._starting_time = 0.0
     
 
     @property
@@ -119,6 +122,36 @@ class BAxUS_Wrapper:
             return (-5, 5)
         else:
             raise ValueError("Unsupported problem type.")
+    
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
     
     def eval_objective(self, x:Tensor)->float:
         """
@@ -263,6 +296,9 @@ class BAxUS_Wrapper:
         max_cholesky_size = float("inf")
         N_CANDIDATES = min(5000, max(2000, 200 * self.dim)) if not SMOKE_TEST else 4
 
+        # Start the timer
+        self.starting_time = time.time()
+
         state = BaxusState(dim=self.dim, eval_budget=total_budget-n_DoE)
         S = embedding_matrix(input_dim=state.dim, target_dim=state.d_init)
 
@@ -303,13 +339,16 @@ class BAxUS_Wrapper:
                     # Fit the model
                     try:
                         fit_gpytorch_mll(mll)
-                    except ModelFittingError:
+                    except ModelFittingError as e:
+
+                        print(f"Model fitting failed: {e.args}")
+                        print("Reverting to Adam-based optimization.")                        
                         # Right after increasing the target dimensionality, the covariance matrix becomes indefinite
                         # In this case, the Cholesky decomposition might fail due to numerical instabilities
                         # In this case, we revert to Adam-based optimization
                         optimizer = torch.optim.Adam([{"params": model.parameters()}], lr=0.1)
 
-                        for _ in range(100):
+                        for _ in range(300):
                             optimizer.zero_grad()
                             output = model(self.X_baxus_target)
                             loss = -mll(output, train_Y.flatten())

@@ -24,8 +24,8 @@ from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =45
-RUN_E:int =  29
+RANDOM_SEED:int =48
+RUN_E:int =  78
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

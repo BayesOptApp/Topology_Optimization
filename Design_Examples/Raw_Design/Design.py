@@ -148,6 +148,8 @@ class Design:
         angle:float = math.atan2(ly,lx)
         length:float = math.sqrt(lx**2.0 + ly**2.0)
         thickness:float = max([1.0, np.sqrt(lx*ly)])
+        #thickness:float = max([1.0, 0.5*self.nelx*self.nely/
+        #                            (self.__nmmcsx*self.__nmmcsy*length)])
 
         
         # Store the references as class properties

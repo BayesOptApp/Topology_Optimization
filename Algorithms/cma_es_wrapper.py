@@ -1,8 +1,9 @@
 import numpy as np
 from typing import Optional, Dict, Tuple, Union
+import time
 try:
-    import cma
     from cma import fmin2
+    from cma.evolution_strategy import CMAEvolutionStrategy
     from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
     from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
     import ioh
@@ -32,6 +33,7 @@ class CMA_ES_Optimizer_Wrapper:
         """
         self.ioh_problem = ioh_problem
         self.random_seed = random_seed
+        self.starting_time = 0.0
 
         # Extract the bounds from the problem
         lb = np.asanyarray(ioh_problem.bounds.lb).ravel()
@@ -70,6 +72,22 @@ class CMA_ES_Optimizer_Wrapper:
         xo = rng.uniform(self.bounds[0], self.bounds[1], size=(dimension,))
 
         return xo.tolist()
+    
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        #return time.perf_counter() - self._starting_time
+    
+        if hasattr(self, "starting_time"):
+            self.rt = time.perf_counter() - self.starting_time
+            return self.rt
+        return 0
 
         
 
@@ -113,6 +131,9 @@ class CMA_ES_Optimizer_Wrapper:
                     
                     else:
                         print(f"Warning: Option {key} is set to 'bounds', not overwriting.")
+
+        # Set the starting time
+        self.starting_time = time.perf_counter()
 
         best_solution, best_fitness = fmin2(objective_function=self.ioh_problem, 
                                                 x0=self.x0, 

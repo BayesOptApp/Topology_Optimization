@@ -1,4 +1,5 @@
 from typing import Union
+import time
 
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
@@ -11,12 +12,11 @@ from torch import Tensor
 from botorch.models import SingleTaskGP
 from botorch.models.model_list_gp_regression import ModelListGP
 from botorch.models.transforms.outcome import Standardize
-from botorch.acquisition import qExpectedImprovement
-from botorch.acquisition.analytic import ConstrainedExpectedImprovement, LogConstrainedExpectedImprovement
+from botorch.acquisition.analytic import LogConstrainedExpectedImprovement
 from botorch.optim import optimize_acqf
 
 from botorch.fit import fit_gpytorch_mll
-
+from botorch.exceptions.errors import ModelFittingError
 
 import gpytorch
 from gpytorch.mlls import ExactMarginalLogLikelihood
@@ -25,7 +25,7 @@ from gpytorch.kernels import MaternKernel, ScaleKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 
-from Algorithms.Penalized_Acquisitions.constrained_expected_improvement import PenalizedExpectedImprovement
+from Algorithms.Penalized_Acquisitions.constrained_expected_improvement import PenalizedExpectedImprovement, qPenalizedExpectedImprovement
 #from   Penalized_Acquisitions import PenalizedExpectedImprovement
 
 import os
@@ -45,10 +45,11 @@ class VanillaCBO:
                                       max_cholesky_size:int=1000,
                                       num_restarts:int=5):
         self.ioh_prob = ioh_prob
-        #self.batch_size = batch_size
-        self.batch_size = 1
+        self.batch_size = batch_size
         self.max_cholesky_size = max_cholesky_size
         self.num_restarts = num_restarts
+
+        self._starting_time = 0.0
     
     @property
     def ioh_prob(self):
@@ -108,6 +109,36 @@ class VanillaCBO:
             return (-5, 5)
         else:
             raise ValueError("Unsupported problem type.")
+    
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
     
     def bounds_for_torch(self)->Tensor:
         """
@@ -182,6 +213,7 @@ class VanillaCBO:
         C:Tensor,  # Constraint values
         #batch_size:int,
         constraint_model, #GP Model for constraints
+        seed:int=0,  # Random seed for reproducibility
         #sobol: SobolEngine,
     ):
         
@@ -191,18 +223,27 @@ class VanillaCBO:
 
         # Acquisition function: Expected Improvement
         #EI = qExpectedImprovement(model, best_f=y_feas.min(), maximize=False)
-        cEI = PenalizedExpectedImprovement(
-            model=model,
-            constraint_model=constraint_model,
-            best_f=Y[best_index].item(),
-            maximize=self.is_maximization,
-        )
+        if self.batch_size == 1:
+            cEI = PenalizedExpectedImprovement(
+                model=model,
+                constraint_model=constraint_model,
+                best_f=Y[best_index].item(),
+                maximize=self.is_maximization,
+            )
+        elif self.batch_size > 1:
+            cEI = qPenalizedExpectedImprovement(
+                model=model,
+                constraint_model=constraint_model,
+                best_f=Y[best_index].item(),
+                seed=seed,
+                maximize=self.is_maximization,
+            )
 
         # Optimize acquisition function
         candidate, _ = optimize_acqf(
             cEI,
             bounds=self.bounds_for_torch(),
-            q=1,
+            q=self.batch_size,
             num_restarts=5,
             raw_samples=20,
         )
@@ -217,7 +258,7 @@ class VanillaCBO:
     def _get_fitted_model(self, X:Tensor, Y:Tensor):
         likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
         covar_module = ScaleKernel(  # Use the same lengthscale prior
-            MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.005, 4.0))
+            MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.001, 10.0))
         )
 
         # Create the model
@@ -231,7 +272,13 @@ class VanillaCBO:
 
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         # Fit the model
-        fit_gpytorch_mll(mll)
+        try:
+            with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
+                fit_gpytorch_mll(mll)
+        except ModelFittingError as e:
+            print("Fitting failed, retrying with perturbed init...")
+            model.covar_module.base_kernel.lengthscale = model.covar_module.base_kernel.lengthscale + 0.1 * torch.rand_like(model.covar_module.base_kernel.lengthscale)
+            fit_gpytorch_mll(mll)  # Retry
 
         return model
     
@@ -282,6 +329,9 @@ class VanillaCBO:
 
         # Count number of loops
         n_loops = 0
+
+        # Set the starting time
+        self.starting_time = time.time()
             
         # Restart (if needed)
         self._restart()
@@ -333,6 +383,7 @@ class VanillaCBO:
                 C=self.train_C1,
                 #batch_size=self.batch_size,
                 constraint_model=ModelListGP(c1_model),
+                seed=random_seed,
             )
             
             # Update the function evaluations counter

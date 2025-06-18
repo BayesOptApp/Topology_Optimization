@@ -12,7 +12,6 @@ __authors__ = ['Elena Raponi', 'Ivan Olarte Rodriguez']
 
 # import usual Python libraries
 import numpy as np
-from scipy import sparse
 from torch import Tensor
 import math
 
@@ -23,8 +22,6 @@ from copy import copy, deepcopy
 #from FEA import evaluate_FEA, return_element_midpoint_positions, compute_number_of_joined_bodies, compute_number_of_joined_bodies_2
 #from FEA import compute_objective_function
 
-# Import DataClasses
-from dataclasses import dataclass
 
 # Import Typing library
 from typing import List, Tuple, Union, Optional
@@ -47,6 +44,8 @@ from utils.Initialization import prepare_FEA
 
 from Design_Examples.Raw_Design.Design_LP import Design_LP, OPT_MODES, CONTINUITY_CHECK_MODES
 from Design_Examples.utils.FEA import COST_FUNCTIONS
+
+import time
 
 
 class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
@@ -144,6 +143,9 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         bounds = ioh.iohcpp.RealBounds(self.problem_dimension, 0.0, 1.0)
         optimum = ioh.iohcpp.RealSolution([0]* self.problem_dimension, 0.0)
 
+        # Initialize the `actual_volume_excess`
+        self.actual_volume_excess = 0.0
+
         if prob_aux_name == "":
             # If the problem auxiliary name is not set, then use the problem name
             partial_new_name = self.problem_name
@@ -179,7 +181,10 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         min_vol_frac_penalty = 1/self.nelx/self.nely
 
         # Set the penalty factor
-        weight_volume_penalty_factor:float = 0.05/min_vol_frac_penalty
+        weight_volume_penalty_factor:float = 200/min_vol_frac_penalty
+
+        if self.symmetry_condition_imposed:
+            weight_volume_penalty_factor = weight_volume_penalty_factor/2.0
 
         # Register the different constraints
         constr1:RealConstraint = RealConstraint(self.dirichlet_boundary_condition, name="Dirichlet Boundary Condition",
@@ -365,6 +370,12 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         - target (`float`): target value evaluation (raw)
         """
 
+        # Update the volume fraction
+        self.actual_volume_excess = self.compute_actual_volume_excess(x)
+
+        # Start the timer
+        start_time = time.perf_counter()
+
         # Loop all over the first 3 constraints
         penalty_array = []
         for i in range(3):
@@ -375,6 +386,9 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         if pen_sum > 0:
             # If the penalty is greater than 0, then the target is not computed
             # and the penalty is returned
+
+            # Stop the timer
+            self.evaluation_time = time.perf_counter() - start_time
             return pen_sum
         
         # Change the variable dependency
@@ -393,8 +407,11 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                                              plotVariables=self.plot_variables,
                                              cost_function=self.cost_function,
                                              penalty_factor=0.0,  # This is for not computing the penalty
-                                             avoid_computation_for_not_compliance=False)
+                                             avoid_computation_for_not_compliance=False,
+                                             )
         
+        # Extract the evaluation time
+        self.evaluation_time = time.time() - start_time
         # Update the number of evaluations
         self._n_evals += 1
 
@@ -614,4 +631,42 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         Return the number of function evaluations-so-far.
         """
         return self._n_evals
+    
+    @property
+    def evaluation_time(self)->float:
+        """
+        This property returns the time spent in the last evaluation.
+        """
+        return self._evaluation_time
+    
+    @evaluation_time.setter
+    def evaluation_time(self,new_time:float)->None:
+        """
+        This property sets the time spent in the last evaluation.
+        """
+        if isinstance(new_time,float) and new_time >= 0:
+            self._evaluation_time = new_time
+        else:
+            raise ValueError("The evaluation time must be a positive float value")
+    
+    @property
+    def actual_volume_excess(self)->float:
+        """
+        This property returns the actual volume excess of the design
+        given the current design.
+        """
+        return self._actual_volume_excess
+    
+    @actual_volume_excess.setter
+    def actual_volume_excess(self,new_value:float)->None:
+        """
+        This property sets the actual volume excess of the design
+        given the current design.
+        """
+        if isinstance(new_value,float):
+            self._actual_volume_excess = new_value
+        else:
+            raise ValueError("The actual volume excess must be a float value")
+    
+    
     

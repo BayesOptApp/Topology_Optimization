@@ -24,8 +24,8 @@ from Algorithms.baxus_wrapper import BAxUS_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =51
-RUN_E:int =  41
+RANDOM_SEED:int =54
+RUN_E:int =  48
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -61,7 +61,7 @@ logger = ioh.logger.Analyzer(
 # Get the problem 
 ioh_prob = get_problem(
     problem_id=1,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=10,  # Dimension of the problem
+    dimension=15,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=True,  # Set to True if you want to plot the stresses
 )

@@ -34,7 +34,7 @@ def args_parser(args:Optional[list]=None)-> argparse.Namespace:
     parser.add_argument(
         "--algorithm",
         type=str,
-        choices=["turbo-m", "turbo-1", "CMA-ES","BAxUS", "HEBO","Vanilla-BO", "DE",'Random-Search'],  # Replace with actual algorithm names
+        choices=["turbo-m", "turbo-1", "CMA-ES","BAxUS", "HEBO","Vanilla-BO","Vanilla-cBO", "DE",'Random-Search',"SCBO"],  # Replace with actual algorithm names
         default="CMA-ES",
         help="Algorithm to use."
     )
@@ -197,7 +197,7 @@ if __name__ == "__main__":
         material_definition_dict = {
             "E11": 13,  # Young's modulus in x-direction
             "E22": 13,  # Young's modulus in y-direction
-            "nu": 0.25,  # Poisson's ratio
+            "nu12": 0.25,  # Poisson's ratio
             "G12": 13/(1+0.25),   # Shear modulus
         }
     
@@ -209,9 +209,9 @@ if __name__ == "__main__":
         interp_points = [(0.0,0.0),(1.0,0.5),(0.5,0.0)]
     
 
-
     # Create the problem instance based on the selected wrapper
     if problem == "IOH_Wrapper_LP":
+        from numpy import ndarray, asarray, zeros_like, zeros
         ioh_prob = Design_LP_IOH_Wrapper(
             mode=optimization_type,
             random_seed=random_seed,
@@ -223,7 +223,7 @@ if __name__ == "__main__":
             nely=nely,
             volfrac=volfrac,
             VR=0.5,
-            V3_list=[0, 0],  # -0.1, -0.4
+            V3_list=zeros((n_master_nodes,),dtype=float).tolist(),  # -0.1, -0.4
             continuity_check_mode=continuity_check_mode,
             plot_variables=plot_variables,
             interpolation_points=interp_points,
@@ -270,17 +270,22 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
 
     )
 
-    # Convert the first two constraints to a not
+    
+    # Convert the constraints to the hidden type
     ioh_prob.convert_defined_constraint_to_type(0,2) # Dirichlet
     ioh_prob.convert_defined_constraint_to_type(1,2) # Neumann
-
-    # Convert connectivity to a Hard constraint
     ioh_prob.convert_defined_constraint_to_type(2,2) # Connectivity
 
-    # Convert volume constraint soft
-    ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
+    # Convert volume constraint to not
+    if algorithm_name not in ["Vanilla-cBO", "SCBO"]:
+        ioh_prob.convert_defined_constraint_to_type(3,3) # Volume
+    else:
+        ioh_prob.convert_defined_constraint_to_type(3,1)
 
     logger.watch(ioh_prob,"n_evals")
+    logger.watch(ioh_prob,"evaluation_time")
+    logger.watch(ioh_prob,"actual_volume_excess")  # Track the number of constraints
+
 
     ioh_prob.attach_logger(logger)  # Attach the logger to the problem instance
 
@@ -290,6 +295,8 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         algorithm = Turbo_M_Wrapper(ioh_prob,
                                     n_trust_regions=3,                          
                                     batch_size=batch_size)
+        
+        logger.watch(algorithm,"running_time")
         
         # Run the algorithm with the specified parameters
         algorithm(total_budget=budget,
@@ -301,6 +308,8 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         algorithm = Turbo_1_Wrapper(ioh_prob, 
                                     batch_size=batch_size)
         
+        logger.watch(algorithm,"running_time")
+        
         # Run the algorithm with the specified parameters
         algorithm(total_budget=budget,
                   random_seed=random_seed,
@@ -309,6 +318,9 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
     elif algorithm_name == "BAxUS":
         from Algorithms.baxus_wrapper import BAxUS_Wrapper
         algorithm = BAxUS_Wrapper(ioh_prob, batch_size=batch_size)
+
+        logger.watch(algorithm,"running_time")
+
         # Run the algorithm with the specified parameters
         algorithm(total_budget=budget,
                   random_seed=random_seed,
@@ -318,6 +330,9 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
         algorithm = CMA_ES_Optimizer_Wrapper(ioh_prob, random_seed=random_seed,
                                              sigma0=sigma_0)
+        
+        logger.watch(algorithm,"running_time")
+
         # Run the algorithm with the specified parameters
         algorithm(max_f_evals=budget,
                   restarts=10,
@@ -328,10 +343,13 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
     elif algorithm_name == "HEBO":
         from Algorithms.hebo_wrapper import HEBO_Wrapper
         algorithm = HEBO_Wrapper(ioh_prob, batch_size=batch_size)
+
+        logger.watch(algorithm,"running_time")
+
         # Run the algorithm with the specified parameters
         algorithm(budget=budget,
                   random_seed=random_seed,
-                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+                  n_DOE=n_doe_mult*ioh_prob.problem_dimension)
         
     elif algorithm_name == "Vanilla-BO":
         from Algorithms.vanilla_bo_wrapper import VanillaBO
@@ -340,6 +358,9 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         algorithm = VanillaBO(ioh_prob,
                               num_restarts=5,
                               batch_size=batch_size)
+        
+        logger.watch(algorithm,"running_time")
+
         # Run the algorithm with the specified parameters
         algorithm(total_budget=budget,
                   random_seed=random_seed,
@@ -348,6 +369,8 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
     elif algorithm_name == "DE":
         from Algorithms.de_wrapper import DifferentialEvolutionWrapper
         algorithm = DifferentialEvolutionWrapper(ioh_prob)
+        
+        logger.watch(algorithm,"running_time")
         # Run the algorithm with the specified parameters
         algorithm(budget=budget,
                   random_seed=random_seed)
@@ -356,11 +379,39 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         from Algorithms.random_search_wrapper import RandomSearchWrapper
         algorithm = RandomSearchWrapper(ioh_prob)
 
+        logger.watch(algorithm,"running_time")
+
         # Run the algorithm with the specified parameters
         algorithm(budget=budget,
                   random_seed=random_seed)
+        
+    elif algorithm_name == "SCBO":
+        from Algorithms.scbo_wrapper import SCBO_Wrapper
+        algorithm = SCBO_Wrapper(ioh_prob, batch_size=batch_size)
 
+        logger.watch(algorithm,"running_time")
 
+        # Run the algorithm with the specified parameters
+        algorithm(total_budget=budget,
+                  random_seed=random_seed,
+                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+    
+    elif algorithm_name == "Vanilla-cBO":
+        from Algorithms.vanilla_cbo_wrapper import VanillaCBO
+        # Initialize the VanillaCBO algorithm with the problem instance and random seed
+        # Note: VanillaCBO is a placeholder for the actual implementation
+        algorithm = VanillaCBO(ioh_prob,
+                               num_restarts=5,
+                               batch_size=batch_size)
+        
+        logger.watch(algorithm,"running_time")
+        
+        # Run the algorithm with the specified parameters
+        algorithm(total_budget=budget,
+                  random_seed=random_seed,
+                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+
+    
 
     ioh_prob.reset()
     logger.close()

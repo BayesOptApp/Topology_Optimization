@@ -1,6 +1,7 @@
 import math
 import os
 import warnings
+import time
 
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
@@ -23,6 +24,7 @@ from torch import Tensor
 from torch.quasirandom import SobolEngine
 
 from botorch.fit import fit_gpytorch_mll
+from botorch.exceptions.errors import ModelFittingError
 # Constrained Max Posterior Sampling s a new sampling class, similar to MaxPosteriorSampling,
 # which implements the constrained version of Thompson Sampling described in [1].
 from botorch.generation.sampling import ConstrainedMaxPosteriorSampling
@@ -53,6 +55,8 @@ class SCBO_Wrapper:
         self.ioh_prob = ioh_prob
         self.batch_size = batch_size
         self.max_cholesky_size = max_cholesky_size
+
+        self._starting_time = 0.0
     
 
     @property
@@ -113,6 +117,36 @@ class SCBO_Wrapper:
             return (-5, 5)
         else:
             raise ValueError("Unsupported problem type.")
+    
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
     
     def eval_objective(self, x:Tensor)->float:
         """
@@ -199,7 +233,7 @@ class SCBO_Wrapper:
     def _get_fitted_model(self, X:Tensor, Y:Tensor):
         likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
         covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
-            MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.005, 4.0))
+            MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.001, 10.0))
         )
         model = SingleTaskGP(
             X,
@@ -211,8 +245,13 @@ class SCBO_Wrapper:
 
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
-        with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
-            fit_gpytorch_mll(mll)
+        try:
+            with gpytorch.settings.max_cholesky_size(self.max_cholesky_size):
+                fit_gpytorch_mll(mll)
+        except ModelFittingError as e:
+            print("Fitting failed, retrying with perturbed init...")
+            model.covar_module.base_kernel.lengthscale = model.covar_module.base_kernel.lengthscale + 0.1 * torch.rand_like(model.covar_module.base_kernel.lengthscale)
+            fit_gpytorch_mll(mll)  # Retry
 
         return model
     
@@ -246,6 +285,9 @@ class SCBO_Wrapper:
 
         # Count number of loops
         n_loops = 0
+
+        # Start the timer
+        self.starting_time = time.time()
 
         while n_evals<=total_budget:
             

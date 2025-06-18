@@ -1,19 +1,26 @@
 import numpy as np
 from typing import Optional, Dict, Tuple, Union
+import time
 try:
     import pandas as pd
     from hebo.optimizers.hebo import HEBO
-    from hebo.optimizers.general import GeneralBO
-    from hebo.optimizers.hebo_embedding import HEBO_Embedding
+    #from hebo.optimizers.general import GeneralBO
+    #from hebo.optimizers.hebo_embedding import HEBO_Embedding
 
-    from hebo.acquisitions.acq import GeneralAcq
+    #from hebo.acquisitions.acq import GeneralAcq
     from hebo.design_space.design_space import DesignSpace
+
+except Exception as e:
+    print(e.args, "For this to run, install the hebo library from pip as `pip install hebo`")
+
+
+try:
+    
     from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
     from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
     import ioh
-
-except:
-    print("For this to run, install the cma library from Niko Hansen as `pip install cma`")
+except Exception as e:
+    print(e.args, "For this to run, install the cma library from Niko Hansen as `pip install cma`")
 
 class HEBO_Wrapper:
     """
@@ -37,6 +44,8 @@ class HEBO_Wrapper:
         self.ioh_problem = ioh_problem
         self.batch_size = batch_size
 
+        self._starting_time = 0.0
+
         # Extract the bounds from the problem
         lb = np.asanyarray(ioh_problem.bounds.lb).ravel()
         ub = np.asanyarray(ioh_problem.bounds.ub).ravel()
@@ -47,6 +56,36 @@ class HEBO_Wrapper:
         elif isinstance(ioh_problem, ioh.iohcpp.problem.RealSingleObjective):
             # For RealSingleObjective, use the bounds from the problem
             self.bounds = (-5, 5)
+    
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
 
     
 
@@ -136,6 +175,9 @@ class HEBO_Wrapper:
                 rand_sample=n_DOE,
                 scramble_seed=self.random_seed,
         )
+
+        # Set the starting time
+        self.starting_time = time.time()
 
         for i in range(self.budget// self.batch_size):
             rec = opt.suggest(n_suggestions=self.batch_size)

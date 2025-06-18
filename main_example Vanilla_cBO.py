@@ -24,8 +24,8 @@ from Algorithms.vanilla_cbo_wrapper import VanillaCBO
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =47
-RUN_E:int =  32
+RANDOM_SEED:int =56
+RUN_E:int =  76
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -42,7 +42,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="Vanilla BO",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Vanilla cBO",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -76,7 +76,7 @@ ioh_prob.attach_logger(logger)
 # Set an instance of the CMA-ES optimizer
 optimizer = VanillaCBO(
     ioh_prob=ioh_prob,  # The IOH problem instance
-    batch_size=1,
+    batch_size=4,
     max_cholesky_size=1000,
     num_restarts=10,
 )
@@ -86,7 +86,7 @@ optimizer = VanillaCBO(
 optimizer(
     total_budget=1000,  # Total budget for the optimization
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    n_DOE=3*ioh_prob.problem_dimension,  # Number of Design of Experiments
+    n_DoE=3*ioh_prob.problem_dimension,  # Number of Design of Experiments
 )
 
 ioh_prob.reset()

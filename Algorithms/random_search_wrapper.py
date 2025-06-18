@@ -1,5 +1,5 @@
 import numpy as np
-
+import time
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
 import ioh
@@ -13,7 +13,8 @@ class RandomSearchWrapper:
             problem: An IOH problem instance with .dimension and .evaluate(x) methods.
         """
         self.ioh_prob = problem
-    
+
+        self._starting_time = 0.0
     @property
     def dim(self):
         """
@@ -49,6 +50,36 @@ class RandomSearchWrapper:
             return False
         else:
             raise ValueError("Unsupported problem type.")
+    
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
     
     def map_to_search_space(self, x):
         """
@@ -86,9 +117,14 @@ class RandomSearchWrapper:
         # Set a random generator from the given seed
         rng = np.random.default_rng(random_seed)
 
+        #  Start the timer
+        self.starting_time = time.time()
+
         for _ in range(budget):
             x = rng.uniform(self.bounds[0], self.bounds[1], size=self.dim)
             f = self.ioh_prob(self.map_to_search_space(x))
+
+            print(f"Running Time: {self.running_time}", f"x: {x}", f"val: {f}")
 
             if best_f is None:
                 best_x = x.copy()

@@ -18,14 +18,14 @@ from problems import get_problem
 import os
 import ioh
 import numpy as np
-from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
+from Algorithms.vanilla_bo_wrapper import VanillaBO
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =50
-RUN_E:int =  45
+RANDOM_SEED:int =52
+RUN_E:int =  44
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -42,7 +42,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="TuRBO_1",    # meta-data for the algorithm used to generate these results
+    algorithm_name="Vanilla BO",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -64,6 +64,7 @@ ioh_prob = get_problem(
     dimension=15,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=True,  # Set to True if you want to plot the stresses
+    penalty_function=True
 )
 
 # Track the number of Finite Element Evaluations (n_evals)
@@ -73,20 +74,21 @@ logger.watch(ioh_prob,"n_evals")
 ioh_prob.attach_logger(logger)
 
 # Set an instance of the CMA-ES optimizer
-optimizer = Turbo_1_Wrapper(
+optimizer = VanillaBO(
     ioh_prob=ioh_prob,  # The IOH problem instance
-    batch_size=1  # Batch size for the optimizer
+    batch_size=1,
+    max_cholesky_size=1000,
+    num_restarts=10,
 )
 
 
 #Run the optimization process
 optimizer(
-    n_DoE=3*ioh_prob.problem_dimension,  # Number of Design of Experiments
+    total_budget=1000,  # Total budget for the optimization
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    total_budget=1000  # Budget for the optimization process
+    n_DoE=3*ioh_prob.problem_dimension,  # Number of Design of Experiments
 )
 
 ioh_prob.reset()
-
 # Close the logger
 ioh_prob.detach_logger()

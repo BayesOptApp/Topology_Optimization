@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.optimize import differential_evolution, OptimizeResult
 from functools import partial
+import time
 
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
@@ -22,6 +23,34 @@ import ioh
 #     if intermediate_result['nfev'] > budget:
 #         raise StopIteration(
 #             "Maximum number of function evaluations exceeded.")
+
+class MaxIterClassWrapper:
+    def __init__(self, problem:ioh.iohcpp.problem.RealSingleObjective, max_iter):
+        """
+        Wrapper for random search algorithm with a maximum iteration limit.
+
+        Args:
+            problem: An IOH problem instance with .dimension and .evaluate(x) methods.
+            max_iter: Maximum number of iterations allowed.
+        """
+        self.ioh_prob = problem
+        self.max_iter = max_iter
+    
+    def __call__(self, x):
+        """
+        Evaluate the solution x.
+
+        Args:
+            x (np.ndarray): Solution vector.
+
+        Returns:
+            float: Fitness value of the solution.
+        """
+
+        if self.ioh_prob.state.evaluations >= self.max_iter:
+            raise StopIteration("Maximum number of iterations reached.")
+        
+        return self.ioh_prob(x)
     
 
 class DifferentialEvolutionWrapper:
@@ -33,6 +62,7 @@ class DifferentialEvolutionWrapper:
             problem: An IOH problem instance with .dimension and .evaluate(x) methods.
         """
         self.ioh_prob = problem
+        self._starting_time = 0.0
     
     @property
     def dim(self):
@@ -81,6 +111,36 @@ class DifferentialEvolutionWrapper:
         else:
             raise ValueError("Unsupported problem type.")
     
+    @property
+    def starting_time(self)-> float:
+        """
+        Get the starting time of the optimization.
+
+        Returns:
+            float: Starting time in seconds.
+        """
+        return self._starting_time
+    
+    @starting_time.setter
+    def starting_time(self, value:float):
+        """
+        Set the starting time of the optimization.
+
+        Args:
+            value (float): Starting time in seconds.
+        """
+        self._starting_time = value
+    
+    @property
+    def running_time(self)-> float:
+        """
+        Get the running time of the optimization.
+
+        Returns:
+            float: Running time in seconds.
+        """
+        return time.time() - self.starting_time
+    
     def map_to_search_space(self, x):
         """
         Maps a solution to the search space of the problem.
@@ -128,9 +188,12 @@ class DifferentialEvolutionWrapper:
         
         maxiter = budget //  (popsize*self.dim) 
 
+        # Start the timer
+        self.starting_time = time.time()
+
 
         result:OptimizeResult = differential_evolution(
-            func=self.ioh_prob,
+            func=MaxIterClassWrapper(self.ioh_prob, max_iter=budget),
             popsize=popsize,
             bounds=self.complete_bounds(),
             strategy='best1bin',
