@@ -27,7 +27,7 @@ from cma import fmin2
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
 RANDOM_SEED:int =70
-RUN_E:int = 57
+RUN_E:int = 106
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -116,14 +116,14 @@ opts = {'bounds':[0,1],
                        'tolfun':1e-6,
                        'seed':RANDOM_SEED,
                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes","non_LP/"),
-                       'maxfevals':150
+                       'maxfevals':200
 }
 
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
 # Run CMA-ES
-fmin2(ioh_prob,x_init,0.25,restarts=0,bipop=True,options=opts)
+fmin2(ioh_prob,x_init,0.1,restarts=0,bipop=True,options=opts)
 
 best_non_LP_solution = ioh_prob.state.current_best
 
@@ -176,14 +176,14 @@ opts = {'bounds':[0,1],
                        'tolfun':1e-6,
                        'seed':RANDOM_SEED,
                        'verb_filenameprefix':os.path.join(logger.output_directory,"outcmaes","LP/"),
-                       'maxfevals':35
+                       'maxfevals':30
 }
 
 # Attach the logger to the problem
 ioh_prob_LP.attach_logger(logger)
 
 # Run CMA-ES
-fmin2(ioh_prob_LP,x_init,0.25,restarts=0,bipop=True,options=opts)
+fmin2(ioh_prob_LP,x_init,0.1,restarts=0,bipop=True,options=opts)
 
 best_non_LP_solution = ioh_prob_LP.state.current_best
 
