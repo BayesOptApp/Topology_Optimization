@@ -392,7 +392,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
                   restarts=10,
                   cma_active=True,
                   random_seed=random_seed,
-                  verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
+                  verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes","Non_LP/"))
         
     elif algorithm_name == "HEBO":
         from Algorithms.hebo_wrapper import HEBO_Wrapper
@@ -471,6 +471,26 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
     print(f"Best MMC Combination solution found: {best_non_LP_solution}")
 
     ioh_prob.reset()
+    logger.reset()  # Reset the logger after the optimization process
+    ioh_prob.detach_logger()
+
+    logger = ioh.logger.Analyzer(
+        root=os.getcwd(),                  # Store data in the current working directory
+        folder_name=f"./Figures_Python/Run_{run_number}_LP",       # in a folder named: './Figures_Python/Run_{run_e}'
+        algorithm_name=algorithm_name,    # meta-data for the algorithm used to generate these results
+        store_positions=True,               # store x-variables in the logged files
+        triggers= triggers,
+
+        additional_properties=[
+            ioh.logger.property.CURRENTY,   # The constrained y-value, by default only the untransformed & unconstraint y
+                                            # value is logged. 
+            ioh.logger.property.RAWYBEST, # Store the raw-best
+            ioh.logger.property.CURRENTBESTY, # Store the current best given the constraints
+            ioh.logger.property.VIOLATION,  # The violation value
+            ioh.logger.property.PENALTY,     # The applied penalty
+        ]
+
+    )
 
 
     # Set the problem instances for the problem
@@ -516,7 +536,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
     logger.watch(ioh_prob_LP,"actual_volume_excess")  # Track the number of constraints
 
 
-    ioh_prob.attach_logger(logger)  # Attach the logger to the problem instance
+    ioh_prob_LP.attach_logger(logger)  # Attach the logger to the problem instance
 
     # Set up the algorithm based on the selected algorithm
     if algorithm_name == "turbo-m":
@@ -567,7 +587,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
                   restarts=10,
                   cma_active=True,
                   random_seed=random_seed,
-                  verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes/"))
+                  verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes","LP/"))
         
     elif algorithm_name == "HEBO":
         from Algorithms.hebo_wrapper import HEBO_Wrapper
@@ -641,4 +661,7 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
                   n_DoE=n_doe_mult*ioh_prob_LP.problem_dimension)
         
 
-    logger.close()
+    #logger.reset()  # Reset the logger after the optimization process
+    ioh_prob_LP.reset()  # Reset the problem instance after the optimization process
+    ioh_prob_LP.detach_logger()  # Detach the logger from the problem instance
+    logger.reset()
