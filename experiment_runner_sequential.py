@@ -218,8 +218,8 @@ if __name__ == "__main__":
     dimension_LP = determine_dimension_a_priori_lp(n_master_nodes)
     dimension_mmcs = determine_dimension_a_priori_mmcs(nmmcsx, nmmcsy, symmetry_active)
 
-    budget_to = budget*(dimension_mmcs/(dimension_mmcs + dimension_LP))  # Budget for the TO problem
-    budget_lp = budget*(dimension_LP/(dimension_mmcs + dimension_LP))
+    budget_to = int(budget*(dimension_mmcs/(dimension_mmcs + dimension_LP)))  # Budget for the TO problem
+    budget_lp = int(budget*(dimension_LP/(dimension_mmcs + dimension_LP)))
 
     print(f"Running with parameters: {argspace}")
 
@@ -467,6 +467,8 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
 
     # Store the best solution found by the non-LP problem
     best_non_LP_solution = ioh_prob.state.current_best
+
+    print(f"Best MMC Combination solution found: {best_non_LP_solution}")
 
     ioh_prob.reset()
 
