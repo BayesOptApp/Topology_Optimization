@@ -350,7 +350,7 @@ class BAxUS_Wrapper:
 
                         for _ in range(300):
                             optimizer.zero_grad()
-                            output = model(self.X_baxus_target)
+                            output = model(self.X_baxus_target).clamp(min=-1e6) # Clamp to avoid numerical issues
                             loss = -mll(output, train_Y.flatten())
                             loss.backward()
                             optimizer.step()

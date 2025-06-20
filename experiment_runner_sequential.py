@@ -351,7 +351,12 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
                                     batch_size=batch_size)
         
         logger.watch(algorithm,"running_time")
-        
+        try:
+            algorithm(total_budget=budget_to,
+                      random_seed=random_seed,
+                      n_DoE= n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         # Run the algorithm with the specified parameters
         algorithm(total_budget=budget_to,
                   random_seed=random_seed,
@@ -364,10 +369,13 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         
         logger.watch(algorithm,"running_time")
         
-        # Run the algorithm with the specified parameters
-        algorithm(total_budget=budget_to,
-                  random_seed=random_seed,
-                  n_DoE= n_doe_mult*ioh_prob.problem_dimension)
+        try:
+            # Run the algorithm with the specified parameters
+            algorithm(total_budget=budget_to,
+                        random_seed=random_seed,
+                        n_DoE= n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
     
     elif algorithm_name == "BAxUS":
         from Algorithms.baxus_wrapper import BAxUS_Wrapper
@@ -375,10 +383,13 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
 
         logger.watch(algorithm,"running_time")
 
+        try:
         # Run the algorithm with the specified parameters
-        algorithm(total_budget=budget_to,
-                  random_seed=random_seed,
-                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+            algorithm(total_budget=budget_to,
+                    random_seed=random_seed,
+                    n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "CMA-ES":
         from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
@@ -388,22 +399,28 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         logger.watch(algorithm,"running_time")
 
         # Run the algorithm with the specified parameters
-        algorithm(max_f_evals=budget_to,
-                  restarts=10,
-                  cma_active=True,
-                  random_seed=random_seed,
-                  verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes","Non_LP/"))
+        try:
+            algorithm(max_f_evals=budget_to,
+                        restarts=10,
+                        cma_active=True,
+                        random_seed=random_seed,
+                        verb_filenameprefix=os.path.join(logger.output_directory,"outcmaes","Non_LP/"))
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "HEBO":
         from Algorithms.hebo_wrapper import HEBO_Wrapper
         algorithm = HEBO_Wrapper(ioh_prob, batch_size=batch_size)
 
         logger.watch(algorithm,"running_time")
-
-        # Run the algorithm with the specified parameters
-        algorithm(budget=budget_to,
-                  random_seed=random_seed,
-                  n_DOE=n_doe_mult*ioh_prob.problem_dimension)
+        
+        try:
+            # Run the algorithm with the specified parameters
+            algorithm(budget=budget_to,
+                    random_seed=random_seed,
+                    n_DOE=n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "Vanilla-BO":
         from Algorithms.vanilla_bo_wrapper import VanillaBO
@@ -416,9 +433,13 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         logger.watch(algorithm,"running_time")
 
         # Run the algorithm with the specified parameters
-        algorithm(total_budget=budget_to,
-                  random_seed=random_seed,
-                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        try:
+            algorithm(total_budget=budget_to,
+                    random_seed=random_seed,
+                    n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "DE":
         from Algorithms.de_wrapper import DifferentialEvolutionWrapper
@@ -426,8 +447,13 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         
         logger.watch(algorithm,"running_time")
         # Run the algorithm with the specified parameters
-        algorithm(budget=budget_to,
-                  random_seed=random_seed)
+
+        try:
+            algorithm(budget=budget_to,
+                    random_seed=random_seed)
+        
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "Random-Search":
         from Algorithms.random_search_wrapper import RandomSearchWrapper
@@ -436,8 +462,12 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         logger.watch(algorithm,"running_time")
 
         # Run the algorithm with the specified parameters
-        algorithm(budget=budget_to,
-                  random_seed=random_seed)
+        try:
+            algorithm(budget=budget_to,
+                    random_seed=random_seed)
+        
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
         
     elif algorithm_name == "SCBO":
         from Algorithms.scbo_wrapper import SCBO_Wrapper
@@ -446,9 +476,12 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         logger.watch(algorithm,"running_time")
 
         # Run the algorithm with the specified parameters
-        algorithm(total_budget=budget_to,
-                  random_seed=random_seed,
-                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        try:
+            algorithm(total_budget=budget_to,
+                    random_seed=random_seed,
+                    n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
     
     elif algorithm_name == "Vanilla-cBO":
         from Algorithms.vanilla_cbo_wrapper import VanillaCBO
@@ -461,9 +494,12 @@ The next excerpt of code is just setting the IOH Logger. You may check the IOH E
         logger.watch(algorithm,"running_time")
         
         # Run the algorithm with the specified parameters
-        algorithm(total_budget=budget_to,
-                  random_seed=random_seed,
-                  n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        try:
+            algorithm(total_budget=budget_to,
+                    random_seed=random_seed,
+                    n_DoE=n_doe_mult*ioh_prob.problem_dimension)
+        except Exception as e:
+            print(f"Exception occurred during algorithm execution: {e.args}")
 
     # Store the best solution found by the non-LP problem
     best_non_LP_solution = ioh_prob.state.current_best

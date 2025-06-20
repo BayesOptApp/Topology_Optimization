@@ -252,6 +252,10 @@ class Turbo_1_Wrapper:
         except ModelFittingError as e:
             print("Fitting failed, retrying with perturbed init...")
             model.covar_module.base_kernel.lengthscale = model.covar_module.base_kernel.lengthscale + 0.1 * torch.rand_like(model.covar_module.base_kernel.lengthscale)
+            # Jitter the data
+            Y_jittered = Y + 1e-6 * torch.randn_like(Y)
+            model.set_train_data(X, Y_jittered, strict=False)
+            # Retry fitting
             fit_gpytorch_mll(mll)  # Retry
 
         return model
