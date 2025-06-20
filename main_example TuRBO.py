@@ -24,8 +24,8 @@ from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =50
-RUN_E:int =  45
+RANDOM_SEED:int =52
+RUN_E:int =  131
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 

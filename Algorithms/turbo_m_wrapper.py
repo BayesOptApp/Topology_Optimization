@@ -158,7 +158,7 @@ class Turbo_M_Wrapper:
         if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, 
                                       Design_IOH_Wrapper, 
                                       ioh.iohcpp.problem.RealSingleObjective)):
-            return self.ioh_prob(x.detach().numpy())
+            return self.ioh_prob(x.detach().cpu().numpy())
         else:
             raise ValueError("Unsupported problem type.")
     
@@ -255,11 +255,11 @@ class Turbo_M_Wrapper:
             model.covar_module.base_kernel.lengthscale = model.covar_module.base_kernel.lengthscale + 0.1 * torch.rand_like(model.covar_module.base_kernel.lengthscale)
             # Jitter the data
             Y_jittered = Y + 1e-6 * torch.randn_like(Y)
-            model.set_train_data(X, Y_jittered, strict=False)
+            model.set_train_data(X, Y_jittered.flatten(), strict=False)
             # Retry fitting
             fit_gpytorch_mll(mll)  # Retry
 
-            
+
         return model
     
     def _restart(self):
@@ -267,7 +267,7 @@ class Turbo_M_Wrapper:
         self.train_X = torch.empty((0, self.dim), **tkwargs)
         self.train_Y = torch.empty((0, 1), **tkwargs)
         self.train_C1 = torch.empty((0, 1), **tkwargs)
-        self.idx = torch.empty((0, 1), **tkwargs)
+        self.idx = torch.empty((0, 1), device="cpu")
     
     def __call__(self,
                  total_budget:int=1000,
@@ -286,7 +286,7 @@ class Turbo_M_Wrapper:
         self.C1_store = torch.empty((0, 1), **tkwargs)
         self.X_store = torch.empty((0, self.dim), **tkwargs)
         self.Y_store = torch.empty((0, 1), **tkwargs)
-        self.idx_store = torch.empty((0, 1), **tkwargs)
+        self.idx_store = torch.empty((0, 1), device="cpu")
 
         n_evals = 0
         n_loops = 0
@@ -305,7 +305,7 @@ class Turbo_M_Wrapper:
         for i in range(self.n_trust_regions):
             self.X_store = torch.cat((self.X_store, train_X[i]), dim=0)
             self.Y_store = torch.cat((self.Y_store, train_Y[i]), dim=0)
-            self.idx_store = torch.cat((self.idx_store, i * torch.ones((n_DoE, 1), dtype=int)), dim=0)
+            self.idx_store = torch.cat((self.idx_store, i * torch.ones((n_DoE, 1, ), dtype=int)), dim=0)
 
             # Optional constraint collection (not active)
             # if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
