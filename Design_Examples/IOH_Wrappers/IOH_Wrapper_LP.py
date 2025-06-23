@@ -12,7 +12,6 @@ __authors__ = ['Elena Raponi', 'Ivan Olarte Rodriguez']
 
 # import usual Python libraries
 import numpy as np
-from scipy import sparse
 from torch import Tensor
 import math
 
@@ -23,8 +22,6 @@ from copy import copy, deepcopy
 #from FEA import evaluate_FEA, return_element_midpoint_positions, compute_number_of_joined_bodies, compute_number_of_joined_bodies_2
 #from FEA import compute_objective_function
 
-# Import DataClasses
-from dataclasses import dataclass
 
 # Import Typing library
 from typing import List, Tuple, Union, Optional
@@ -48,6 +45,8 @@ from utils.Initialization import prepare_FEA
 from Design_Examples.Raw_Design.Design_LP import Design_LP, OPT_MODES, CONTINUITY_CHECK_MODES
 from Design_Examples.utils.FEA import COST_FUNCTIONS
 
+import time
+
 
 class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
     r"""
@@ -59,7 +58,8 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  nmmcsx:int, 
                  nmmcsy:int, 
                  nelx:int, 
-                 nely:int, 
+                 nely:int,
+                 instance:int = 0, 
                  VR: float= 0.5, 
                  V3_list:List[float] = [0.0, 0.0],
                  volfrac:float = 0.5,
@@ -143,11 +143,21 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         bounds = ioh.iohcpp.RealBounds(self.problem_dimension, 0.0, 1.0)
         optimum = ioh.iohcpp.RealSolution([0]* self.problem_dimension, 0.0)
 
+        # Initialize the `actual_volume_excess`
+        self.actual_volume_excess = 0.0
+
+        if prob_aux_name == "":
+            # If the problem auxiliary name is not set, then use the problem name
+            partial_new_name = self.problem_name
+        else:
+            # If the problem auxiliary name is set, then use it
+            partial_new_name =  self.problem_name + "_" + prob_aux_name
+
         # Initialize the IOH class dependency
         ioh.problem.RealSingleObjective.__init__(self,
-            name=self.problem_name()+ "_" + prob_aux_name,
+            name= partial_new_name,
             n_variables=self.problem_dimension,
-            instance=0,
+            instance=instance,
             is_minimization=True,
             bounds= bounds,
             optimum=optimum
@@ -171,7 +181,10 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         min_vol_frac_penalty = 1/self.nelx/self.nely
 
         # Set the penalty factor
-        weight_volume_penalty_factor:float = 0.05/min_vol_frac_penalty
+        weight_volume_penalty_factor:float = 200/min_vol_frac_penalty
+
+        if self.symmetry_condition_imposed:
+            weight_volume_penalty_factor = weight_volume_penalty_factor/2.0
 
         # Register the different constraints
         constr1:RealConstraint = RealConstraint(self.dirichlet_boundary_condition, name="Dirichlet Boundary Condition",
@@ -357,6 +370,12 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         - target (`float`): target value evaluation (raw)
         """
 
+        # Update the volume fraction
+        self.actual_volume_excess = self.compute_actual_volume_excess(x)
+
+        # Start the timer
+        start_time = time.perf_counter()
+
         # Loop all over the first 3 constraints
         penalty_array = []
         for i in range(3):
@@ -367,6 +386,9 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         if pen_sum > 0:
             # If the penalty is greater than 0, then the target is not computed
             # and the penalty is returned
+
+            # Stop the timer
+            self.evaluation_time = time.perf_counter() - start_time
             return pen_sum
         
         # Change the variable dependency
@@ -385,8 +407,11 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                                              plotVariables=self.plot_variables,
                                              cost_function=self.cost_function,
                                              penalty_factor=0.0,  # This is for not computing the penalty
-                                             avoid_computation_for_not_compliance=False)
+                                             avoid_computation_for_not_compliance=False,
+                                             )
         
+        # Extract the evaluation time
+        self.evaluation_time = time.time() - start_time
         # Update the number of evaluations
         self._n_evals += 1
 
@@ -452,6 +477,58 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             return ioh.ConstraintEnforcement.HARD
         elif type_int ==5:
             return ioh.ConstraintEnforcement.OVERRIDE
+    
+    def change_values_of_MMCs_from_unscaled_array(self, samp_array:np.ndarray,
+                                                  tol:float = 0.5, min_thickness:float = 1.0,
+                                                  repair_level:int=2,**kwargs)->None:
+        '''
+        Given an array of values (in the same format as the array of properties)
+        change the values of each MMC based on the values of the received array
+        by parameter
+
+        Inputs:
+        - samp_array: array with new values (result from optimisation/modification process)
+        - repair_level: level of repair desired in case the parameters given on the array
+                        lie outside the admissible range
+        - kwargs: keyword arguments (tolerance, min_thickness)
+        '''
+
+        if self._zero_valued== True:
+            self._zero_valued = False
+        
+        # Check if the repair level is an acceptable value
+        if not (repair_level ==0 or repair_level == 1 or repair_level == 2):
+            raise ValueError("The repair level should be an integer equal to 0, 1 or 2")
+
+        # Check the sample array has the number of elements required to modify all the properties
+        # of each of the MMCs
+
+        samp_array_manip:np.ndarray = samp_array.ravel()
+
+        # Check if the array contains all the required number of attributes to modify each MMC
+        if samp_array_manip.size != (5*len(self.list_of_MMC)):
+            raise AttributeError("The size of the array does not correspond" 
+                                 + " to the total number of parameters of each MMC")
+        
+
+        for ii in range(0,len(samp_array_manip),5):
+            jj:int = math.floor(ii/5)
+
+            curMMC:MMC = self.list_of_MMC[jj]
+
+            # Change the values
+            curMMC.change_pos_X_from_scaled_value(samp_array_manip[ii],self._pos_X_norm)
+            curMMC.change_pos_Y_from_scaled_value(samp_array_manip[ii+1],self._pos_Y_norm)
+            curMMC.change_angle_from_scaled_value(samp_array_manip[ii+2],self._angle_norm)
+            curMMC.change_length_from_scaled_value(samp_array_manip[ii+3],self._length_norm)
+            curMMC.change_thickness_from_scaled_value(samp_array_manip[ii+4],self._thickness_norm)
+            
+            if repair_level ==1 or repair_level == 2:
+                curMMC.repair_MMC(self.nelx,self.nely,repair_level=repair_level,
+                                  min_thickness=min_thickness,tol=tol)
+        
+        # Update the Topology
+        self._topo = self._topo.from_floating_array(self._density_mapping(self.E0,self.Emin))
         
 
     def convert_defined_constraint_to_type(self, iddx:int,new_type:int)->None:
@@ -554,4 +631,42 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         Return the number of function evaluations-so-far.
         """
         return self._n_evals
+    
+    @property
+    def evaluation_time(self)->float:
+        """
+        This property returns the time spent in the last evaluation.
+        """
+        return self._evaluation_time
+    
+    @evaluation_time.setter
+    def evaluation_time(self,new_time:float)->None:
+        """
+        This property sets the time spent in the last evaluation.
+        """
+        if isinstance(new_time,float) and new_time >= 0:
+            self._evaluation_time = new_time
+        else:
+            raise ValueError("The evaluation time must be a positive float value")
+    
+    @property
+    def actual_volume_excess(self)->float:
+        """
+        This property returns the actual volume excess of the design
+        given the current design.
+        """
+        return self._actual_volume_excess
+    
+    @actual_volume_excess.setter
+    def actual_volume_excess(self,new_value:float)->None:
+        """
+        This property sets the actual volume excess of the design
+        given the current design.
+        """
+        if isinstance(new_value,float):
+            self._actual_volume_excess = new_value
+        else:
+            raise ValueError("The actual volume excess must be a float value")
+    
+    
     
