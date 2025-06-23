@@ -24,8 +24,8 @@ from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =48
-RUN_E:int =  78
+RANDOM_SEED:int =51
+RUN_E:int =  144
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -60,10 +60,11 @@ logger = ioh.logger.Analyzer(
 
 # Get the problem 
 ioh_prob = get_problem(
-    problem_id=1,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=15,  # Dimension of the problem
+    problem_id=4,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
+    dimension=45,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=True,  # Set to True if you want to plot the stresses
+    instance=3,
 )
 
 # Track the number of Finite Element Evaluations (n_evals)
@@ -76,14 +77,14 @@ ioh_prob.attach_logger(logger)
 cma_es_optimizer = CMA_ES_Optimizer_Wrapper(
     ioh_problem=ioh_prob,  # The problem instance
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    sigma0=0.25,  # Initial standard deviation for the CMA-ES algorithm
+    sigma0=0.10,  # Initial standard deviation for the CMA-ES algorithm
 )
 
 
 #Run the optimization process
 cma_es_optimizer(restarts=0, # Number of restarts for the CMA-ES algorithm
                  tolfun=1e-7, # Tolerance for the function value
-                 max_f_evals=1000 # Maximum number of function evaluations
+                 max_f_evals=500 # Maximum number of function evaluations
                  )
 
 ioh_prob.reset()
