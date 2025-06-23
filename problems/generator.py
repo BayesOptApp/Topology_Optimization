@@ -15,7 +15,8 @@ ALLOWED_NUMBERS = [*range(1, len(DEFAULT_PROBLEM_NAMES) + 1)]
                          
 
 def get_problem(problem_id:Union[str,int], 
-                dimension:int, 
+                dimension:int,
+                instance:Optional[int]=0, 
                 plot_stresses:Optional[bool]=False,
                 run_number:Optional[int] = 1,
                 penalty_function:Optional[bool]=True)->Design_IOH_Wrapper:
@@ -26,6 +27,7 @@ def get_problem(problem_id:Union[str,int],
     ------------
         - problem (`Union[str, int]`): The name or index of the problem to import.
         - dimension (`int`): The dimension of the problem.
+        - instance (`int`): The instance number for the problem.
         - plot_stresses (`Optional[bool]`): Whether to plot stresses for the problem.
         - run_number (`Optional[int]`): The run number for the problem instance.
         - penalty_function (`Optional[bool]`): Whether to apply a penalty function to the problem.
@@ -55,13 +57,13 @@ def get_problem(problem_id:Union[str,int],
     
     # Now given the parameters, we can import the problem
     if problem_name == "cantilever_beam":
-       problem = _set_cantilever_beam_problem(dimension, plot_stresses, run_number)
+       problem = _set_cantilever_beam_problem(dimension, instance, plot_stresses, run_number)
     elif problem_name == "short_beam":
-        problem = _set_short_beam_problem(dimension, plot_stresses, run_number)
+        problem = _set_short_beam_problem(dimension, instance, plot_stresses, run_number)
     elif problem_name == "mbb":
-        problem = _set_mbb_problem(dimension, plot_stresses, run_number)
+        problem = _set_mbb_problem(dimension, instance, plot_stresses, run_number)
     elif problem_name == "michell_truss":
-        problem = _set_michell_truss_problem(dimension, plot_stresses, run_number)
+        problem = _set_michell_truss_problem(dimension, instance, plot_stresses, run_number)
     else:
         raise ValueError(f"Unknown problem name: {problem_name}")
     
@@ -86,6 +88,7 @@ def get_problem(problem_id:Union[str,int],
 
 
 def _set_cantilever_beam_problem(dimension:int, 
+                                 instance:int,
                                  plot_stresses:bool,
                                  run_number:int)->Design_IOH_Wrapper:
     """
@@ -94,6 +97,7 @@ def _set_cantilever_beam_problem(dimension:int,
     Args
     ------------
         - dimension (`int`): The dimension of the problem.
+        - instance (`int`): The instance number for the problem.
         - plot_stresses (`bool`): Whether to plot stresses for the problem.
         - run_number (`int`): The run number for the problem instance.
 
@@ -112,6 +116,15 @@ def _set_cantilever_beam_problem(dimension:int,
     if dimension % 5 != 0:
         raise ValueError("Dimension must be a multiple of 5 for Cantilever Beam problem.")
     
+    # Generate a random generation by using the instance
+    import numpy as np
+    rng = np.random.default_rng(instance)
+
+    
+    bound_ = 0.05*0.25
+    # Get a uniform random number between the bounds
+    random_number = 1 + rng.uniform(bound_, bound_)
+    
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
     
@@ -127,7 +140,7 @@ def _set_cantilever_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.5),
-                                      force_vector=(0.0, -0.25))
+                                      force_vector=(0.0, -0.25*random_number))
     
     boundary_conditions.add(neumann_BC_right)
 
@@ -135,6 +148,7 @@ def _set_cantilever_beam_problem(dimension:int,
     problem = Design_IOH_Wrapper(
         nmmcsx= num_mmc,
         nmmcsy= 2,
+        instance= instance,
         nelx= NELX,
         nely= NELY,
         volfrac= 0.5,
@@ -153,14 +167,16 @@ def _set_cantilever_beam_problem(dimension:int,
 
 
 def _set_short_beam_problem(dimension:int, 
-                                 plot_stresses:bool,
-                                 run_number:int)->Design_IOH_Wrapper:
+                            instance:int,
+                            plot_stresses:bool,
+                            run_number:int)->Design_IOH_Wrapper:
     """
     Sets up the Short Beam problem.
 
     Args
     ------------
         - dimension (`int`): The dimension of the problem.
+        - instance (`int`): The instance number for the problem.
         - plot_stresses (`bool`): Whether to plot stresses for the problem.
         - run_number (`int`): The run number for the problem instance.
 
@@ -183,6 +199,16 @@ def _set_short_beam_problem(dimension:int,
     if dimension < 10:
         raise ValueError("Dimension must be at least 10 for Short Beam problem.")
     
+    # Generate a random generation by using the instance
+    import numpy as np
+    rng = np.random.default_rng(instance)
+
+    
+    bound_ = 0.05*0.25/30
+
+    # Get a uniform random number between the bounds
+    random_number = 1 + rng.uniform(bound_, bound_)
+    
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
     
@@ -198,13 +224,14 @@ def _set_short_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.0),
-                                      force_vector=(0.0, -0.25/30))
+                                      force_vector=(0.0, -0.25/30*random_number))
     
     boundary_conditions.add(neumann_BC_right)
 
     # Create the problem instance
     problem = Design_IOH_Wrapper(
         nmmcsx= num_mmc,
+        instance= instance,
         nmmcsy= 1,
         nelx= NELX,
         nely= NELY,
@@ -223,7 +250,8 @@ def _set_short_beam_problem(dimension:int,
     return problem
 
 
-def _set_mbb_problem(dimension:int, 
+def _set_mbb_problem(dimension:int,
+                     instance:int,
                      plot_stresses:bool,
                      run_number:int)->Design_IOH_Wrapper:
     """
@@ -232,6 +260,7 @@ def _set_mbb_problem(dimension:int,
     Args
     ------------
         - dimension (`int`): The dimension of the problem.
+        - instance (`int`): The instance number for the problem.
         - plot_stresses (`bool`): Whether to plot stresses for the problem.
         - run_number (`int`): The run number for the problem instance.
 
@@ -253,6 +282,16 @@ def _set_mbb_problem(dimension:int,
     # Ensure the dimension is at least 10
     if dimension < 10:
         raise ValueError("Dimension must be at least 10 for MBB problem.")
+    
+    # Generate a random generation by using the instance
+    import numpy as np
+    rng = np.random.default_rng(instance)
+
+    
+    bound_ = 0.05*0.25/10
+
+    # Get a uniform random number between the bounds
+    random_number = 1 + rng.uniform(bound_, bound_)
     
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
@@ -276,7 +315,7 @@ def _set_mbb_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_top = PointNeumannBC(location=(0.0,1.0),
-                                      force_vector=(0.0, -0.25/10),
+                                      force_vector=(0.0, -0.25/10 * random_number),
                                       )
     
     boundary_conditions.add(neumann_BC_top)
@@ -287,6 +326,7 @@ def _set_mbb_problem(dimension:int,
         nmmcsy= 1,
         nelx= NELX,
         nely= NELY,
+        instance= instance,
         volfrac= 0.5,
         symmetry_condition= False,
         scalation_mode="unitary",
@@ -303,6 +343,7 @@ def _set_mbb_problem(dimension:int,
 
 
 def _set_michell_truss_problem(dimension:int, 
+                               instance:int,
                                 plot_stresses:bool,
                                 run_number:int)->Design_IOH_Wrapper:
     """
@@ -311,6 +352,7 @@ def _set_michell_truss_problem(dimension:int,
     Args
     ------------
         - dimension (`int`): The dimension of the problem.
+        - instance (`int`): The instance number for the problem.
         - plot_stresses (`bool`): Whether to plot stresses for the problem.
         - run_number (`int`): The run number for the problem instance.
 
@@ -324,6 +366,17 @@ def _set_michell_truss_problem(dimension:int,
 
     NELX:int = 50
     NELY:int = 150
+
+
+    # Generate a random generation by using the instance
+    import numpy as np
+    rng = np.random.default_rng(instance)
+
+    
+    bound_ = 0.05*0.25
+
+    # Get a uniform random number between the bounds
+    random_number = 1 + rng.uniform(bound_, bound_)
 
     # Invert the material properties
     material_properties = DEFAULT_MATERIAL_PROPERTIES.copy()
@@ -362,7 +415,7 @@ def _set_michell_truss_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_top = PointNeumannBC(location=(0.0,0.5),
-                                      force_vector=(-0.25, 0.0),
+                                      force_vector=(-0.25*random_number, 0.0),
                                       )
     
     boundary_conditions.add(neumann_BC_top)
@@ -373,6 +426,7 @@ def _set_michell_truss_problem(dimension:int,
         nmmcsy= 2,
         nelx= NELX,
         nely= NELY,
+        instance= instance,
         volfrac= 0.5,
         symmetry_condition= True,
         scalation_mode="unitary",
