@@ -327,10 +327,16 @@ class BAxUS_Wrapper:
         with botorch.settings.validate_input_scaling(False):
             while n_evals <= total_budget:  # Run until evaluation budget depleted
                 # Fit a GP model
-                train_Y = (self.Y_baxus - self.Y_baxus.mean()) / self.Y_baxus.std()
+                std_Y = self.Y_baxus.std()
+                if std_Y < 1e-12:
+                    train_Y = self.Y_baxus - self.Y_baxus.mean()
+                else:
+                    train_Y = (self.Y_baxus - self.Y_baxus.mean()) / std_Y
                 likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
                 model = SingleTaskGP(
-                    self.X_baxus_target, train_Y, likelihood=likelihood
+                    self.X_baxus_target, 
+                    train_Y, 
+                    likelihood=likelihood
                 )
                 mll = ExactMarginalLogLikelihood(model.likelihood, model)
 

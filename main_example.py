@@ -24,8 +24,8 @@ from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =51
-RUN_E:int =  144
+RANDOM_SEED:int =56
+RUN_E:int =  153
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -61,10 +61,10 @@ logger = ioh.logger.Analyzer(
 # Get the problem 
 ioh_prob = get_problem(
     problem_id=4,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=45,  # Dimension of the problem
+    dimension=35,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=True,  # Set to True if you want to plot the stresses
-    instance=3,
+    instance=0,
 )
 
 # Track the number of Finite Element Evaluations (n_evals)
