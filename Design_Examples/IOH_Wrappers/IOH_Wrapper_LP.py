@@ -76,6 +76,7 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
                  boundary_conditions_list:Optional[BoundaryConditionList]=None,
                  interpolation_points:Optional[List[Tuple[Union[float,int], Union[float,int]]]] = [(0,0), (1,0.5)],
                  material_properties_dict:Optional[dict] = None,
+                 standard_weight:Optional[float] = 200.0,
                  **kwargs):
         
         r"""
@@ -104,6 +105,12 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
             - use_sparse_matrices: Check to use sparse matrices to run the optimisation algorithm
             - plot_variables: set to plot the variables generated in the process
             - cost_function: the definition of the cost function to compute the target (so far only two options)
+            - run_: the run number of the problem
+            - continuity_check_mode: the mode to check the continuity of the design
+            - boundary_conditions_list: a list of boundary conditions to apply to the design
+            - interpolation_points: a list of points to interpolate the design
+            - material_properties_dict: a dictionary with the material properties to use
+            - standard_weight: the standard weight to use for the constraints
         """
 
         # Get the kwargs
@@ -180,8 +187,13 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
          # Compute the minimal possible volume fraction penalty
         min_vol_frac_penalty = 1/self.nelx/self.nely
 
+        assert standard_weight > 0 and isinstance(standard_weight,(int,float)), "The standard weight must be greater than 0.0"
+
+        # Store the standard weight
+        self._standard_weight:float = standard_weight
+
         # Set the penalty factor
-        weight_volume_penalty_factor:float = 200/min_vol_frac_penalty
+        weight_volume_penalty_factor:float = standard_weight/min_vol_frac_penalty
 
         if self.symmetry_condition_imposed:
             weight_volume_penalty_factor = weight_volume_penalty_factor/2.0
@@ -189,15 +201,15 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         # Register the different constraints
         constr1:RealConstraint = RealConstraint(self.dirichlet_boundary_condition, name="Dirichlet Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  200, 
+                                                        weight =  standard_weight, 
                                                         exponent=1.0)
         constr2:RealConstraint = RealConstraint(self.neumann_boundary_condition, name="Neumann Boundary Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  200, 
+                                                        weight =  standard_weight, 
                                                         exponent=1.0)
         constr3:RealConstraint = RealConstraint(self.connectivity_condition, name="Connectivity Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
-                                                        weight =  200, 
+                                                        weight =  standard_weight, 
                                                         exponent=1.0)
         constr4:RealConstraint = RealConstraint(self.volume_fraction_cond, name="Volume Fraction Condition",
                                                         enforced=ioh.ConstraintEnforcement.HIDDEN,
@@ -668,5 +680,36 @@ class Design_LP_IOH_Wrapper(Design_LP,ioh.problem.RealSingleObjective):
         else:
             raise ValueError("The actual volume excess must be a float value")
     
+
+    @property
+    def standard_weight(self)->float:
+        """
+        This property returns the standard weight used for the constraints.
+        """
+        return self._standard_weight
+    
+    @standard_weight.setter
+    def standard_weight(self,new_weight:float)->None:
+        """
+        This property sets the standard weight used for the constraints.
+        """
+        if isinstance(new_weight,float) and new_weight > 0:
+            self._standard_weight = new_weight
+
+            # Change the weight of the "Constraint Set"
+            for idx in range(len(self.constraints)):
+                actual_constraint:ioh.iohcpp.RealConstraint = self.constraints[idx]
+                if idx < 3:
+                    # For the first three constraints, set the standard weight
+                    actual_constraint.weight = new_weight
+                else:
+                    weight_volume_penalty_factor:float = new_weight/( 1/self.nelx/self.nely) #0.05/min_vol_frac_penalty
+
+                    if self.symmetry_condition_imposed:
+                        weight_volume_penalty_factor = weight_volume_penalty_factor/2.0
+
+
+        else:
+            raise ValueError("The standard weight must be a positive float value")
     
     
