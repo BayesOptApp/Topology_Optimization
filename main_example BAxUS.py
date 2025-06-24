@@ -24,7 +24,7 @@ from Algorithms.baxus_wrapper import BAxUS_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =54
+RANDOM_SEED:int =55
 RUN_E:int =  48
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 

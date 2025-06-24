@@ -19,7 +19,7 @@ import gpytorch
 import torch
 import botorch
 from gpytorch.constraints import Interval
-from gpytorch.kernels import MaternKernel, ScaleKernel
+from gpytorch.kernels import MaternKernel, ScaleKernel, RBFKernel
 from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from torch import Tensor
@@ -213,7 +213,8 @@ class BAxUS_Wrapper:
 
         # Scale the TR to be proportional to the lengthscales
         x_center = X[Y.argmax(), :].clone()
-        weights = model.covar_module.lengthscale.detach().view(-1)
+        #weights = model.covar_module.lengthscale.detach().view(-1)
+        weights = model.covar_module.base_kernel.lengthscale.detach().view(-1)
         weights = weights / weights.mean()
         weights = weights / torch.prod(weights.pow(1.0 / len(weights)))
         tr_lb = torch.clamp(x_center - weights * state.length, -1.0, 1.0)
@@ -254,13 +255,13 @@ class BAxUS_Wrapper:
     
     def _get_fitted_model(self, X:Tensor, Y:Tensor):
         likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
-        covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
-            MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.005, 4.0))
-        )
+        #covar_module = ScaleKernel(  # Use the same lengthscale prior as in the TuRBO paper
+        #    MaternKernel(nu=2.5, ard_num_dims=self.dim, lengthscale_constraint=Interval(0.005, 4.0))
+        #)
         model = SingleTaskGP(
             X,
             Y,
-            covar_module=covar_module,
+            #covar_module=covar_module,
             likelihood=likelihood,
             outcome_transform=Standardize(m=1),
         )
@@ -333,10 +334,26 @@ class BAxUS_Wrapper:
                 else:
                     train_Y = (self.Y_baxus - self.Y_baxus.mean()) / std_Y
                 likelihood = GaussianLikelihood(noise_constraint=Interval(1e-8, 1e-3))
+                
+                # Covariance module with constrained signal variance and lengthscales
+                covar_module = ScaleKernel(
+                    # base_kernel=MaternKernel(
+                    #     nu=2.5,
+                    #     #ard_num_dims=self.dim,  # your input dimension here
+                    #     lengthscale_constraint=Interval(0.005,10.0)
+                    # ),
+                    base_kernel=RBFKernel(
+                        #ard_num_dims=state.target_dim, 
+                        lengthscale_constraint=Interval(0.005, 10.0)
+                    ),
+                    #outputscale_constraint=Interval(0.05, 20.0)
+                )
+
                 model = SingleTaskGP(
                     self.X_baxus_target, 
                     train_Y, 
-                    likelihood=likelihood
+                    likelihood=likelihood,
+                    covar_module=covar_module,
                 )
                 mll = ExactMarginalLogLikelihood(model.likelihood, model)
 
