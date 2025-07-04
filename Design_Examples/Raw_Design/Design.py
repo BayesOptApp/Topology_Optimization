@@ -1318,6 +1318,42 @@ class Design:
         
         return self._topo.compute_volume_ratio()
     
+    def plot_discrete_design(self,**kwargs)->tuple:
+        """
+        This function plots the discrete design of the topology optimisation
+        problem. It uses the plot_discrete_design function from the topology
+        object associated to this design.
+
+        Inputs:
+        - kwargs: keyword arguments to pass to the plot_discrete_design function
+        """
+
+        # Check if the matplotlib is installed
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError("Matplotlib is not installed. Please install it to use this function.")
+        
+        # Get the kwarguments
+        isinteractive:bool = kwargs.pop('interactive',True)
+        
+        topo:np.ndarray = self._topo.return_floating_topology()
+
+        x,y=np.meshgrid(np.linspace(0, self.nelx,self.nelx+1),np.linspace(0,self.nely,self.nely+1))
+
+        # Initialise the figure
+        fig, ax = plt.subplots(figsize=(10, 5))
+
+        ax.imshow(topo, 
+                  origin='lower',
+                  cmap='Greys',  interpolation='nearest')
+
+        ax.set_aspect('equal')
+
+        return fig, ax
+
+
+    
     
     def dirichlet_boundary_conditions_compliance(self)-> float:
         """

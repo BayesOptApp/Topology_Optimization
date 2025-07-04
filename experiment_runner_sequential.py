@@ -219,7 +219,7 @@ if __name__ == "__main__":
     dimension_mmcs = determine_dimension_a_priori_mmcs(nmmcsx, nmmcsy, symmetry_active)
 
     budget_to = int(budget*(dimension_mmcs/(dimension_mmcs + dimension_LP)))  # Budget for the TO problem
-    budget_lp = int(budget*(dimension_LP/(dimension_mmcs + dimension_LP)))
+    budget_lp = budget - budget_to  # Budget for the LP problem
 
     print(f"Running with parameters: {argspace}")
 
@@ -237,7 +237,7 @@ if __name__ == "__main__":
             "E11": 13,  # Young's modulus in x-direction
             "E22": 13,  # Young's modulus in y-direction
             "nu12": 0.25,  # Poisson's ratio
-            "G12": 13/(1+0.25),   # Shear modulus
+            "G12": 13/(2*(1+0.25)),   # Shear modulus
         }
     
 
