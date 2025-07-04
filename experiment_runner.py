@@ -198,7 +198,7 @@ if __name__ == "__main__":
             "E11": 13,  # Young's modulus in x-direction
             "E22": 13,  # Young's modulus in y-direction
             "nu12": 0.25,  # Poisson's ratio
-            "G12": 13/(1+0.25),   # Shear modulus
+            "G12": 13/(2*(1+0.25)),   # Shear modulus
         }
     
 
