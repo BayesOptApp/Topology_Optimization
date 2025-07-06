@@ -52,7 +52,7 @@ def args_parser(args:Optional[list]=None)-> argparse.Namespace:
         "--material_definition",
         type=str,
         default="orthotropic",
-        choices=["orthotropic", "isotropic"],
+        choices=["orthotropic", "isotropic", "quasi-isotropic"],
         help="Material definition to use in the problem.",
     )
 
@@ -230,6 +230,14 @@ if __name__ == "__main__":
             "E22": 1,   # Young's modulus in y-direction
             "nu12": 0.25,  # Poisson's ratio
             "G12": 0.5,  # Shear modulus
+        }
+    
+    elif material_definition == "quasi-isotropic":
+        material_definition_dict = {
+            "E11": 13,  # Young's modulus in x-direction
+            "E22": 13,  # Young's modulus in y-direction
+            "nu12": 0.25,  # Poisson's ratio
+            "G12": 13/((1+0.25)),   # Shear modulus
         }
     
     else:

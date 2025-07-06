@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import polars as pl
 
 # Import plotly for the parallel axis plot
@@ -7,6 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
 pio.renderers.default = 'browser'
+pio.templates.default = "plotly_white"
 
 from iohinspector import DataManager, turbo_align
 from pathlib import Path
@@ -199,80 +201,57 @@ mixed_data_2['algorithm_num'] = mixed_data_2['algorithm_name'].map(class_map)
 mixed_data_1['algorithm_name'] = mixed_data_1['algorithm_name'].map(algorithm_labels)
 mixed_data_2['algorithm_name'] = mixed_data_2['algorithm_name'].map(algorithm_labels)
 
-# Step 2: Define custom discrete colorscale
-colorscale = [
-    [0.0, 'red'],
-    [0.33, 'blue'],
-    [0.66, 'green'],
-    [1.0, 'orange']
-]
+# Add experiment type as a column
+mixed_data_1["exp_type"] = "Concurrent"
+mixed_data_2["exp_type"] = "Sequential"
 
+# Combine both into one DataFrame
+combined_df = pd.concat([mixed_data_1, mixed_data_2], ignore_index=True)
 
-# Select all columns starting with 'x'
-x_columns = [f"x{ii}" for ii in range(18)]
+# If current_y_best isn't in final df, fallback to current_y
+if "current_y_best" not in combined_df.columns and "current_y" in combined_df.columns:
+    combined_df["current_y_best"] = combined_df["current_y"]
 
-df_subset = mixed_data_1[['algorithm_name'] + x_columns].copy()
+# Compute global best value
+best_global_value = combined_df["current_y_best"].min()
 
-# Create a row index for reshaping
-df_subset['row_id'] = df_subset.index
+# Add a column for the performance gap
+combined_df["gap_to_best"] = combined_df["current_y_best"] - best_global_value
 
-# Use stack instead of melt
-df_long = df_subset.set_index(['row_id', 'algorithm_name'])[x_columns].stack().reset_index()
-df_long.columns = ['row_id', 'algorithm_name', 'variable', 'value']
-df_long['variable'] = df_long['variable'].map(x_label_map)
+# Melt to long format (if needed, not necessary here since we only plot one column)
+df_gap = combined_df[["algorithm_name", "exp_type", "current_y_best", "gap_to_best"]].copy()
 
-# Create the box plot
-fig = px.box(df_long,
-             x='variable',
-             y='value',
-             color='algorithm_name',
-             category_orders={'algorithm_name': algorithm_order},
-             color_discrete_map=color_discrete_map,
-             points=False,
-             title='Box Plot of All x Variables by Algorithm',
-             labels={'value': 'Parameter Value', 'variable': 'Variable'})
+# Sort by algorithm name for better visualization
+df_gap["algorithm_name"] = pd.Categorical(
+    df_gap["algorithm_name"],
+    categories=algorithm_order,
+    ordered=True
+)
+
+# Plot: Box plot of gaps per algorithm, grouped by mode
+fig = px.box(
+    df_gap,
+    x="algorithm_name",
+    y="current_y_best",
+    color="exp_type",
+    title="Compliance Value Distribution by Algorithm and Experiment Type",
+    labels={
+        "current_y_best": "Compliance",
+        "algorithm_name": "Algorithm",
+        "exp_type": "Mode"
+    },
+    color_discrete_map=color_discrete_map,
+    range_y=(4e-02,70),
+    log_y=True,
+    points=False,
+    
+)
 
 fig.update_layout(
-    xaxis=dict(tickfont=dict(size=17)),
+    boxmode="group",
+    xaxis_title="Algorithm",
+    yaxis_title="Compliance",
+    legend_title="Experiment Type"
 )
 
 fig.show()
-
-
-df_subset_2 = mixed_data_2[['algorithm_name'] + x_columns].copy()
-
-# Create a row index for reshaping
-df_subset_2['row_id'] = df_subset_2.index
-
-# Use stack instead of melt
-df_long_2 = df_subset_2.set_index(['row_id', 'algorithm_name'])[x_columns].stack().reset_index()
-df_long_2.columns = ['row_id', 'algorithm_name', 'variable', 'value']
-df_long_2['variable'] = df_long_2['variable'].map(x_label_map)
-
-# Create the box plot
-fig2 = px.box(df_long_2,
-             x='variable',
-             y='value',
-             color='algorithm_name',
-             category_orders={'algorithm_name': algorithm_order},
-             color_discrete_map=color_discrete_map,
-             points=False,
-             title='Box Plot of All x Variables by Algorithm',
-             labels={'value': 'Parameter Value', 'variable': 'Variable'})
-
-fig2.update_layout(
-    xaxis=dict(tickfont=dict(size=17)),
-)
-
-fig2.show()
-
-# # Formatting
-# ax.axvline(x=833, color='gray', linestyle=':')
-# ax.set_xlabel("Evaluations")
-# ax.set_ylabel("best-so-far")
-# ax.set_yscale('log')
-# ax.set_xlim(80, 1000)
-# ax.legend()
-# ax.set_title("Convergence of Sequential vs Concurrent Optimization")
-# plt.tight_layout()
-# plt.show()

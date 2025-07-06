@@ -121,7 +121,7 @@ for i, material in enumerate(material_definitions):
     ax.set_xlim(0, 1000)
 
 axs[0].set_ylabel("Compliance [best-so-far]")
-fig.legend(legend_lines, legend_labels, loc='lower center', ncol=6, fontsize=10)
+fig.legend(legend_lines, legend_labels, loc='lower center', ncol=6, fontsize=9)
 #plt.suptitle("Convergence for Isotropic vs Orthotropic Materials")
 plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 plt.show()
