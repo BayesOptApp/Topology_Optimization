@@ -4,6 +4,7 @@ from material_parameterizations.lp import V1_1_fun, V3_1_OPT, V3_2_OPT, VR_OPT, 
 from meshers.MeshGrid2D import MeshGrid2D
 import math
 from dataclasses import dataclass
+from scipy.optimize import brentq
 
 
 
@@ -182,6 +183,75 @@ def CurveInterpolation(w1:float,V3_1:float,V3_2:float,VR:float)->float:
 
     return V3
 
+
+def CurveInterpolation2(w1:float,V3_1:float,V3_2:float,VR:float)->float:
+    '''
+
+    Function which performs curve interpolation according to Miki's diagram 
+
+    This function is implemented in a way that it is more efficient than the previous one.
+    
+    Inputs:
+    - w1:   Ratio of the dist. from the 1st point to the dist. 
+        - sum 0 gives exactly the 1st point
+        - 1 gives exactly the 2nd point
+    - V3_1: V3 of the 1st master node
+    - V3_2: V3 of the 2nd master node
+    - VR:   Volumetric ratio of the layers
+
+    Outputs:
+    V3 of the current point
+    '''
+
+    #Step size for the search
+    dy:float = DV_DEFAULT
+
+    c:float = 2*VR-1
+
+    y1:float = V3_1
+    y2:float = V3_2
+
+    # Initialise output
+    V1:float = 0.0
+    V3:float = 0.0
+
+    def F(y: float) -> float:
+        """The integral function from Miki's formula."""
+        term1 = math.sqrt(c**2 + 8*y + 8)
+        return (1 / (8 * term1)) * math.sqrt((c**2 + 8*y + 8)/(y + 1)) * (
+            2 * math.sqrt(2) * (y + 1) * term1 +
+            c**2 * math.sqrt(y + 1) * math.log(math.sqrt(2) * term1 + 4 * math.sqrt(y + 1))
+        )
+    
+    # Edge cases
+    if abs(w1) < 1e-12:
+        return V3_1
+    if abs(w1 - 1) < 1e-12:
+        return V3_2
+
+    # Clamp y values if they hit singularity
+    y1 = max(V3_1, -0.999999)
+    y2 = max(V3_2, -0.999999)
+
+    # Determine direction of integration
+    F1 = F(y1)
+    F2 = F(y2)
+
+    target = F1 + w1 * (F2 - F1)
+
+    def residual(y):
+        return F(y) - target
+
+    # Solve for V3 by root finding in interval [y1, y2] or [y2, y1]
+    try:
+        V3 = brentq(residual, y1, y2) if y2 > y1 else brentq(residual, y2, y1)
+    except ValueError:
+        # Fallback to closest endpoint
+        V3 = y1 if abs(w1) < 0.5 else y2
+
+    return V3
+
+
 def setup_lamination_parameters(NE:int,
                                 nelx:int,
                                 nely:int,
@@ -258,7 +328,8 @@ def calculate_points_on_arc_segment(V3_1:float = V3_1_OPT,
 def compute_elemental_lamination_parameters(mesh_grid:MeshGrid2D,
                                             master_nodes_list:List[LaminationMasterNode],
                                             VR:float,
-                                            symmetry_cond:bool)->list:
+                                            symmetry_cond:bool,
+                                            interpolation_function:Optional[int]=1)->list:
 
     '''
     Function to compute the elemental lamination parameters.
@@ -269,6 +340,7 @@ def compute_elemental_lamination_parameters(mesh_grid:MeshGrid2D,
     - master_nodes_list: List of `LaminationMasterNode` objects representing the master nodes
     - VR: Volumetric ratio of the layers
     - symmetry_cond: boolean variable managing if the symmetry condition is "on"
+    - interpolation_function: Optional integer to select the interpolation function (default is 1)
 
     Returns
     ------------------
@@ -373,7 +445,7 @@ def compute_elemental_lamination_parameters(mesh_grid:MeshGrid2D,
                 w1:float = d1/(d1+d2)
             
                 # Calculate elemental lamination parameters
-                v3 = CurveInterpolation(w1,v3_1,v3_2,VR)
+                v3 = CurveInterpolation(w1,v3_1,v3_2,VR) if interpolation_function == 1 else CurveInterpolation2(w1,v3_1,v3_2,VR)
                 # Store the partial V1 and V3 values
                 partial_V3_list.append(v3)
 
@@ -410,3 +482,38 @@ def compute_elemental_lamination_parameters(mesh_grid:MeshGrid2D,
 
 
     return V1_e,V3_e
+
+def compute_angle_distribution(V3_e:np.ndarray,
+                               mesh_grid:MeshGrid2D)->Tuple[np.ndarray, np.ndarray]:
+    '''
+    Function to compute the angle distribution of the lamination parameters.
+
+    Args
+    ------------------
+    - V3_e: Array of V3 values for each element
+    - mesh_grid: `MeshGrid2D` object containing the mesh grid parameters
+
+    Returns
+    ------------------
+    - theta_l: Array of left angles for each element
+    - theta_r: Array of right angles for each element
+    '''
+
+    assert isinstance(mesh_grid, MeshGrid2D), "mesh_grid must be an instance of MeshGrid2D"
+
+    # Extract number of elements from the mesh grid
+    NE = mesh_grid.nel_total
+
+    # Initialize angles array
+    theta_l = np.zeros((NE, 1))
+    theta_r = np.zeros_like(theta_l)
+
+    # Calculate angles based on V1 values
+    for e in range(NE):
+        V1_pos = 0.5*(V3_e[e]+1.0)
+        V1_neg = -0.5*(V3_e[e])
+        theta_l[e] = 0.5*np.arccos(V1_pos)
+        theta_r[e] = 0.5*np.arccos(V1_neg)
+        
+
+    return theta_l, theta_r

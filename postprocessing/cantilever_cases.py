@@ -27,6 +27,14 @@ def return_material_properties(material_definition: str,)->dict:
             "G12": 0.5,  # Shear modulus
         }
     
+    elif material_definition == "quasi-isotropic":
+        material_definition_dict = {
+            "E11": 13,  # Young's modulus in x-direction
+            "E22": 13,  # Young's modulus in y-direction
+            "nu12": 0.25,  # Poisson's ratio
+            "G12": 13/((1+0.25)),   # Shear modulus
+        }
+    
     else:
         material_definition_dict = {
             "E11": 13,  # Young's modulus in x-direction

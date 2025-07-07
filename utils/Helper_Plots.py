@@ -741,4 +741,193 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         
         # Close the thread of the figure
         p.close()
+
+
+def plot_LP_Parameters_pyvista_2(N_static:np.ndarray,
+                                 element_map:np.ndarray,
+                                 mat_ind:np.ndarray,
+                                 V1_e:np.ndarray, 
+                                 V3_e:np.ndarray,
+                                 plot_elements:bool = True,
+                                 linewidth:float=DEFAULT_PLOT_LINEWIDTH_ELEMENT_PLOTS,
+                                 plot_modifier_dict:dict = None,
+                                **kwargs)->pyvista.Plotter:
+        
+        r'''
+        Visualise the Lamination parameters
+        This function is used to plot the Lamination parameters V1 and V3 in a pyvista window.
+
+        Args
+        ------------------------
+        - N_static: The deformed field of the beam
+        - element_map: Array with the node maps of each quad
+        - mat_ind: array of booleans defining which elements represent actual material elements
+        - V1_e: Array with the elemental V1 parameter
+        - V3_e: Array with the elemental V3 parameter
+        - linewidth: input of the desired linewidth to plot the elements
+        - plot_elements: boolean control to show the elements
+        - plot_modifier_dict: dictionary with the plot modifiers, e.g. rotation angle
+
+        Returns:
+        ------------------------
+        p: pyvista.Plotter object with the mesh of the Lamination parameters
+        '''
+
+        # Generate an array with the information of vertices
+        verts:np.ndarray = np.hstack((N_static[:,1].reshape(-1,1),N_static[:,2].reshape(-1,1)))
+        verts:np.ndarray = np.hstack((verts,np.zeros((N_static.shape[0],1))))
+
+        # Squeeze (For Precaution)
+        mat_ind = np.squeeze(mat_ind)
+
+        # Get final element Map to plot
+        final_elem_map:np.ndarray = element_map[mat_ind,:]
+
+        # Generate an array to point to the Element freedom table
+        faces_1:np.ndarray = np.hstack((4*np.ones((final_elem_map.shape[0],1)),
+                                          final_elem_map[:,1:5]))
+
+        faces = np.ravel(faces_1)
+        faces = faces.astype(int)
+
+        # Generate a new PyVista window (for Linux)
+        #pyvista.start_xvfb()
+
+        # Generate the mesh
+        mesh:pyvista.PolyData = pyvista.PolyData(verts,faces)
+
+
+        # Repair mesh
+        #mesh:pyvista.PolyData = mesh.clean()
+
+        # Extract the dict of the plot modifier
+        if plot_modifier_dict is None:
+                rotate_bool = False
+                rotate_angle = 0.0
+        else:
+                rotate_bool = plot_modifier_dict.get("rotate",False)
+                rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
+        
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
+
+        # Add the data to the mesh
+        mesh.cell_data["V1"] = V1_e[mat_ind].ravel()
+        mesh.cell_data["V3"] = V3_e[mat_ind].ravel()
+
+        #mesh:pyvista.PolyData = mesh.cell_data_to_point_data()
+
+        # Mock Plot
+
+        p = pyvista.Plotter(border = False,
+                            off_screen=True,
+                            shape=(1, 2),
+                            window_size=[8192, 6144]
+                            )
+        
+        p.enable_image_style()
+        
+        p.subplot(0,0)
+
+       
+        sargs1 = dict(title = "V1",
+                        title_font_size=72,
+                        label_font_size=56,
+                        n_labels=5,
+                        color= "black",
+                        #fmt="%.4f",
+                        font_family="arial",
+                        position_x = 0.20,
+                        position_y = 0.75,
+                        height = 0.05,
+                        width = 0.6,
+                        vertical = False
+                        )
+
+
+        
+        p.add_mesh(mesh,copy_mesh=False,scalars="V1",edge_color="black",
+                   color = "green",scalar_bar_args = sargs1,
+                 show_edges=plot_elements, 
+                 interpolate_before_map=True, cmap="jet",
+                 line_width=linewidth, clim = [-1.0,1.0],
+                 log_scale=False)
+        
+
+
+       
+        p.background_color = 'white'
+        #p.camera_position ="xy"
+        p.camera.tight(view="xy", adjust_render_window = True,padding=0.4)
+        #p.add_title('Cost:{0:.4E}'.format(cost), font='arial', color='k', font_size=22)
+        #p.show_axes()
+        #p.show_bounds(color="black",show_zaxis=False,font_size=20)
+
+        # get the bounds of the first subplot 
+
+
+        p.subplot(0,1)
+
+
+        sargs2 = dict(title = "V3",
+                        title_font_size=72,
+                        label_font_size=56,
+                        n_labels=5,
+                        color= "black",
+                        #fmt="%.4f",
+                        font_family="arial",
+                        position_x = 0.20,
+                        position_y = 0.75,
+                        width = 0.6,
+                        height = 0.05,
+                        vertical = False
+                        )
+
+
+        p.add_mesh(mesh,copy_mesh=True,scalars="V3",color="black",edge_color="black",
+                 show_edges=plot_elements, scalar_bar_args = sargs2,
+                 interpolate_before_map=True, cmap="jet",
+                 line_width=linewidth, clim = [-1.0,1.0],
+                 log_scale=False)
+        
+      
+
+        p.background_color = 'white'
+        #p.add_title('Cost:{0:.4E}'.format(cost), font='arial', color='k', font_size=22)
+
+        p.camera.tight(view="xy", adjust_render_window = True,padding=0.4)
+        
+        # Save the figure
+        # directory_path:str = os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY,
+        #                                   "Run_{0}".format(run_))
+        # filename:str = "iter{0}_LP_dist_{1}_{2}.{3}".format(iterr,
+        # sample,
+        # cost,
+        # image_file_format)
+
+        #fullname:str = os.path.join(directory_path,filename)
+
+   
+        # try:
+        #         p.screenshot(filename=fullname,transparent_background=False)
+        # except FileNotFoundError:
+        #         # Check the folder od Figures Exist
+
+        #         if not os.path.exists(os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY)):
+        #                 # Generate the folder
+        #                 os.mkdir(os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY))
+                        
+        #         if not os.path.exists(directory_path):
+        #                 # Generate the folder
+        #                 os.mkdir(directory_path)
+                
+        #         # Try again
+        #         p.screenshot(filename=fullname,transparent_background=False)
+        
+        # Close the thread of the figure
+        #p.close()
+        return p
        

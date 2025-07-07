@@ -233,18 +233,18 @@ if __name__ == "__main__":
     
     material_definition_dict_quasi_isotropic = {
         
-            "E11": 25,  # Young's modulus in x-direction
-            "E22": 1,   # Young's modulus in y-direction
+            "E11": 13,  # Young's modulus in x-direction
+            "E22": 13,  # Young's modulus in y-direction
             "nu12": 0.25,  # Poisson's ratio
-            "G12": 0.5,  # Shear modulus
+            "G12": 13/((1+0.25)),   # Shear modulus
         }
     
 
     material_definition_dict_isotropic = {
-            "E11": 13,  # Young's modulus in x-direction
-            "E22": 13,  # Young's modulus in y-direction
+            "E11": 12,  # Young's modulus in x-direction
+            "E22": 12,  # Young's modulus in y-direction
             "nu12": 0.25,  # Poisson's ratio
-            "G12": 13/(2*(1+0.25)),   # Shear modulus
+            "G12": 12/(2*(1+0.25)),   # Shear modulus
         }
     
 

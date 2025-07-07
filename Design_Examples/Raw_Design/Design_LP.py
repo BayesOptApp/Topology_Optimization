@@ -19,7 +19,7 @@ import math
 from copy import copy, deepcopy
 
 # Import evaluate FEA function
-from Design_Examples.utils.FEA import evaluate_FEA_LP
+from Design_Examples.utils.FEA import evaluate_FEA_LP, plot_lamination_parameters_distribution, Plotter
 
 # Import Typing library
 from typing import List, Tuple, Union, Optional
@@ -254,6 +254,40 @@ class Design_LP(Design):
         #self.__score_FEA = cost
 
         return cost
+    
+    def plot_lamination_parameters(self,
+                                   interpolation_function:int=1)->Plotter:
+        '''
+        Plot the lamination parameters of the design
+
+        Inputs:
+        - interpolation_function: Integer to control the interpolation function used
+        '''
+
+        # Compute the topology optimisation matrix
+        TO_mat:np.ndarray = self._topo.return_floating_topology()
+
+        x_array = np.array([self.VR, *self.V3_list])
+
+
+        # Call the plot function
+        pl1:Plotter = plot_lamination_parameters_distribution(x=x_array,
+                                                TO_mat=TO_mat,
+                                                Emin=self.Emin,
+                                                E0=self.E0,
+                                                boundary_conditions=self.boundary_conditions_list,
+                                                material_properties_dict=self.material_properties_dict.copy(),
+                                                interpolation_points=self.__interpolation_points,
+                                                symmetry_cond= self.symmetry_condition_imposed,
+                                                mode= self.mode,
+                                                plot_modifier_dict=self.plot_modifier_dict,
+                                                interpolation_function= interpolation_function
+
+        )
+
+        # Show the plot
+        return pl1
+
 
     # ------------------------------------------------------------------------
     # Member functions to return the private attributes

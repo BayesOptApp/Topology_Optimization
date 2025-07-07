@@ -30,7 +30,8 @@ print(manager.overview)
 dt:pl.DataFrame = manager.select().load(False, True)
 
 #some_name = dt['function_name'][0]
-some_name = "Topology_Optimization_MMC"
+#some_name = "Topology_Optimization_MMC"
+some_name = "Topology_Optimization_With_Lamination_Parameters"
 
 # Get the design
 design = set_case_per_name(name=some_name, material_definition="orthotropic")
@@ -42,12 +43,18 @@ list_of_variables = get_list_of_strings_of_variables(dim =design.problem_dimensi
 # Get the x values with best function value
 
 #x_values = dt[list_of_variables][419].to_numpy()
-x_values = np.asarray([0.13672694903794352, 0.2049985640530812, 0.06873562651187165, 0.8483222526442988, 0.3031933757682419, 0.8318830940761535, 0.998006665130156, 0.8794365297326651, 0.7650157988014814, 0.5345173139073329, 0.9302716621286777, 0.6881332079047313, 0.10113647882033772, 0.5952714233355805, 0.1017812403859123])
+x_values = np.asarray([0.13672694903794352, 0.2049985640530812, 0.06873562651187165, 0.8483222526442988, 0.3031933757682419, 0.8318830940761535, 0.998006665130156, 0.8794365297326651, 0.7650157988014814, 0.5345173139073329, 0.9302716621286777, 0.6881332079047313, 0.10113647882033772, 0.5952714233355805, 0.1017812403859123, 0.5, 1e-6, 0.7])
 
 design.modify_mutable_properties_from_array(x_values, scaled=True, repair_level=0)
 
 
 # Get the contour
-fig, ax= design.plot_discrete_design()
+#fig, ax= design.plot_discrete_design()
 
-plt.show()
+#plt.show()
+
+# Plot the v1_v3 Distribution
+#fig_2 = design.plot_lamination_parameters(1)
+fig_2 = design.plot_lamination_parameters(interpolation_function=2)
+
+fig_2.screenshot('v1_v3_distribution.png', transparent_background=False)

@@ -19,12 +19,13 @@ from boundary_conditions import BoundaryConditionList
 from material_parameterizations.lpim import LaminationMasterNode
 # Import plotting functions
 from utils.Helper_Plots import plotNodalVariables, plotNodalVariables_pyvista
-from utils.Helper_Plots import plot_LP_Parameters, plot_LP_Parameters_pyvista
+from utils.Helper_Plots import plot_LP_Parameters, plot_LP_Parameters_pyvista, plot_LP_Parameters_pyvista_2
+from pyvista import Plotter
 
 from typing import Optional, Union
 # Import the LP functions
 #from material_parameterizations.lp import compute_elemental_lamination_parameters
-from material_parameterizations.lpim import compute_elemental_lamination_parameters
+from material_parameterizations.lpim import compute_elemental_lamination_parameters, compute_angle_distribution
 
 
 ''' Constants '''
@@ -585,6 +586,90 @@ def append_mass_elements_iterative(idx:int,
             stack.append(( idxs[ii],material_neighs[ii]))
 
 
+def plot_lamination_parameters_distribution(x:np.ndarray,
+                                            TO_mat:np.ndarray,
+                                            Emin:float,
+                                            E0:float,
+                                            boundary_conditions:BoundaryConditionList,
+                                            material_properties_dict:dict,
+                                            interpolation_points:List[Tuple[Union[float,int], Union[float,int]]],
+                                            symmetry_cond:bool=True,
+                                            sparse_matrices_solver:bool=False,
+                                            cost_function:str = COST_FUNCTIONS[0],
+                                            mode:str="TO+LP",
+                                            plot_modifier_dict:Optional[dict]=None,
+                                            interpolation_function:Optional[int]=1,
+                                            **kwargs)->Tuple[Plotter]:
+    
+    r"""
+    This function is added to plot the lamination parameters distribution on a mesh
+    """
+
+    assert mode in ["TO+LP","LP"], "The mode set is not allowed. Use 'TO+LP' or 'LP' to plot the lamination parameters"
+
+    # Check the entry on the cost function
+    if cost_function not in COST_FUNCTIONS:
+        raise ValueError("The cost function set is not allowed")
+    
+    x = x.flatten()
+    
+    VR:float = x[0]
+    
+    # Get length and height of the elements based on density matrix
+    l:float = TO_mat.shape[1]
+    h:float = TO_mat.shape[0]
+
+    
+    # Generate the mesh object
+    mesh:Mesh = CompositeMaterialMesh(boundary_conditions_list=boundary_conditions,
+                                      length=l,height=h,element_length=ELEMENT_LENGTH_DEFAULT,
+                                      element_height=ELEMENT_HEIGHT_DEFAULT,
+                                      sparse_matrices=sparse_matrices_solver,
+                                      E11=material_properties_dict["E11"],
+                                      E22=material_properties_dict["E22"],
+                                      G12=material_properties_dict["G12"],
+                                      nu12=material_properties_dict["nu12"])
+    
+    # Reshape the density matrix into a vector
+    #density_vec:np.ndarray = np.rot90(TO_mat).reshape((1,mesh.MeshGrid.nel_total),order='F')
+    density_vec:np.ndarray = TO_mat.reshape((1,mesh.MeshGrid.nel_total),order='C')
+    
+     # Extract the number of elements
+    nelx:int = mesh.MeshGrid.nelx
+    nely:int = mesh.MeshGrid.nely
+
+    # Construct a list of lamination master nodes
+    lamination_master_nodes:List[LaminationMasterNode] = list()
+    for ii in range(len(interpolation_points)):
+        # Create a new lamination master node
+        lmn:LaminationMasterNode = LaminationMasterNode(x=interpolation_points[ii][0]*nelx,
+                                                        y=interpolation_points[ii][1]*nely,
+                                                        V3=x[ii+1])
+        # Append the lamination master node to the list
+        lamination_master_nodes.append(lmn)
+
+    V1_e,V3_e = compute_elemental_lamination_parameters(mesh.MeshGrid,
+                                                        master_nodes_list=lamination_master_nodes,
+                                                        VR=VR,
+                                                        symmetry_cond=symmetry_cond,
+                                                        interpolation_function=interpolation_function
+    )
+
+    # Compute the angle distribution
+    theta_l, theta_r = compute_angle_distribution(V3_e=V3_e,
+                                                  mesh_grid=mesh.MeshGrid)
+
+    # PLot the lamination parameters
+
+
+    pyvista_pl = plot_LP_Parameters_pyvista_2(N_static=mesh.MeshGrid.coordinate_grid,
+                        element_map=mesh.MeshGrid.E,
+                        mat_ind = (density_vec>Emin), 
+                        V1_e = V1_e,
+                        V3_e=V3_e,
+                        plot_modifier_dict=plot_modifier_dict)
+    
+    return pyvista_pl
 
 
 
