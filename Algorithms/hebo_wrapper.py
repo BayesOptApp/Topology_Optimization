@@ -18,6 +18,7 @@ try:
     
     from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
     from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper_Instanced import Design_IOH_Wrapper_Instanced
     import ioh
 except Exception as e:
     print(e.args, "For this to run, install the cma library from Niko Hansen as `pip install cma`")
@@ -29,7 +30,8 @@ class HEBO_Wrapper:
 
     def __init__(self, 
                  ioh_problem:Union[ioh.iohcpp.problem.RealSingleObjective, 
-                                   Design_LP_IOH_Wrapper, Design_IOH_Wrapper],
+                                   Design_LP_IOH_Wrapper, Design_IOH_Wrapper,
+                                   Design_IOH_Wrapper_Instanced],
                  batch_size:int = 1
                  ):
         """
@@ -50,7 +52,7 @@ class HEBO_Wrapper:
         lb = np.asanyarray(ioh_problem.bounds.lb).ravel()
         ub = np.asanyarray(ioh_problem.bounds.ub).ravel()
 
-        if isinstance(ioh_problem, (Design_LP_IOH_Wrapper,Design_IOH_Wrapper)):
+        if isinstance(ioh_problem, (Design_LP_IOH_Wrapper,Design_IOH_Wrapper, Design_IOH_Wrapper_Instanced)):
             # For Design_LP_IOH_Wrapper and Design_IOH_Wrapper, use the bounds from the problem
             self.bounds = [lb[0], ub[0]]
         elif isinstance(ioh_problem, ioh.iohcpp.problem.RealSingleObjective):

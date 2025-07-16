@@ -6,6 +6,7 @@ try:
     from cma.evolution_strategy import CMAEvolutionStrategy
     from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
     from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+    from Design_Examples.IOH_Wrappers.IOH_Wrapper_Instanced import Design_IOH_Wrapper_Instanced
     import ioh
 
 except:
@@ -17,7 +18,8 @@ class CMA_ES_Optimizer_Wrapper:
     """
 
     def __init__(self, 
-                 ioh_problem:Union[ioh.iohcpp.problem.RealSingleObjective, 
+                 ioh_problem:Union[ioh.iohcpp.problem.RealSingleObjective,
+                                   Design_IOH_Wrapper_Instanced, 
                                    Design_LP_IOH_Wrapper, Design_IOH_Wrapper], 
                  x0=None, 
                  sigma0=0.25,
@@ -39,7 +41,7 @@ class CMA_ES_Optimizer_Wrapper:
         lb = np.asanyarray(ioh_problem.bounds.lb).ravel()
         ub = np.asanyarray(ioh_problem.bounds.ub).ravel()
 
-        if isinstance(ioh_problem, (Design_LP_IOH_Wrapper,Design_IOH_Wrapper)):
+        if isinstance(ioh_problem, (Design_LP_IOH_Wrapper,Design_IOH_Wrapper, Design_IOH_Wrapper_Instanced)):
             # For Design_LP_IOH_Wrapper and Design_IOH_Wrapper, use the bounds from the problem
             self.bounds = [lb[0], ub[0]]
         elif isinstance(ioh_problem, ioh.iohcpp.problem.RealSingleObjective):

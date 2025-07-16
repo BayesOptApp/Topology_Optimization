@@ -2,6 +2,9 @@ from typing import Union
 
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_Instanced import Design_IOH_Wrapper_Instanced
+
+
 import ioh
 from typing import Union, Optional, Dict, Tuple
 import time
@@ -45,6 +48,7 @@ SMOKE_TEST = os.environ.get("SMOKE_TEST")
 class VanillaBO:
     def __init__(self, ioh_prob:Union[Design_IOH_Wrapper,
                                       Design_LP_IOH_Wrapper,
+                                      Design_IOH_Wrapper_Instanced,
                                       ioh.iohcpp.problem.RealSingleObjective], 
                                       batch_size:int=1,
                                       max_cholesky_size:int=1000,
@@ -67,11 +71,15 @@ class VanillaBO:
     @ioh_prob.setter
     def ioh_prob(self, ioh_prob:Union[Design_IOH_Wrapper,
                                         Design_LP_IOH_Wrapper,
+                                        Design_IOH_Wrapper_Instanced,
                                         ioh.iohcpp.problem.RealSingleObjective]):
         """
         Sets the IOH problem instance.
         """
-        if not isinstance(ioh_prob, (Design_IOH_Wrapper, Design_LP_IOH_Wrapper, ioh.iohcpp.problem.RealSingleObjective)):
+        if not isinstance(ioh_prob, (Design_IOH_Wrapper, 
+                                     Design_LP_IOH_Wrapper, 
+                                     Design_IOH_Wrapper_Instanced,
+                                     ioh.iohcpp.problem.RealSingleObjective)):
             raise ValueError("ioh_prob must be an instance of Design_IOH_Wrapper," +  
                              + " Design_LP_IOH_Wrapper or RealSingleObjective.")
         self._ioh_prob = ioh_prob
@@ -97,7 +105,9 @@ class VanillaBO:
         """
         Returns the dimension of the problem.
         """
-        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, 
+                                      Design_IOH_Wrapper,
+                                      Design_IOH_Wrapper_Instanced)):
             return self.ioh_prob.meta_data.n_variables
         elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
             return self.ioh_prob.meta_data.n_variables
@@ -120,7 +130,9 @@ class VanillaBO:
         """
         Returns the bounds of the problem as a tensor.
         """
-        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, 
+                                      Design_IOH_Wrapper,
+                                      Design_IOH_Wrapper_Instanced)):
             tens = torch.tensor([self.ioh_prob.bounds.lb[0], self.ioh_prob.bounds.ub[0]], **tkwargs)
         elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
             tens = torch.tensor([-5, 5], **tkwargs)
@@ -181,6 +193,7 @@ class VanillaBO:
 
         if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, 
                                       Design_IOH_Wrapper, 
+                                      Design_IOH_Wrapper_Instanced,
                                       ioh.iohcpp.problem.RealSingleObjective)):
             return self.ioh_prob(x.detach().cpu().numpy())
         else:
@@ -362,7 +375,7 @@ class VanillaBO:
         n_loops += 1
 
         C1_holder = []
-        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper, Design_IOH_Wrapper_Instanced)):
             # Evaluate the indexed 3 constraint (volume)
             for x in self.train_X:
                 # Convert the tensor to a numpy array

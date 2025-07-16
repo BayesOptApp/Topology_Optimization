@@ -1,6 +1,6 @@
 import importlib
 from typing import Union, Optional, List, Tuple, Dict
-from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_Instanced import Design_IOH_Wrapper_Instanced
 from Design_Examples.Raw_Design.Design import DEFAULT_MATERIAL_PROPERTIES
 from boundary_conditions import BoundaryConditionList, PointDirichletBC, LineDirichletBC, PointNeumannBC
 import os
@@ -19,7 +19,7 @@ def get_problem(problem_id:Union[str,int],
                 instance:Optional[int]=0, 
                 plot_stresses:Optional[bool]=False,
                 run_number:Optional[int] = 1,
-                penalty_function:Optional[bool]=True)->Design_IOH_Wrapper:
+                penalty_function:Optional[bool]=True)->Design_IOH_Wrapper_Instanced:
     """
     Dynamically imports and returns a problem class from the problems package.
 
@@ -53,7 +53,7 @@ def get_problem(problem_id:Union[str,int],
     
 
     # Instantiate a variable to store the problem instance
-    problem:Optional[Design_IOH_Wrapper] = None
+    problem:Optional[Design_IOH_Wrapper_Instanced] = None
     
     # Now given the parameters, we can import the problem
     if problem_name == "cantilever_beam":
@@ -90,7 +90,7 @@ def get_problem(problem_id:Union[str,int],
 def _set_cantilever_beam_problem(dimension:int, 
                                  instance:int,
                                  plot_stresses:bool,
-                                 run_number:int)->Design_IOH_Wrapper:
+                                 run_number:int)->Design_IOH_Wrapper_Instanced:
     """
     Sets up the Cantilever Beam problem.
 
@@ -148,7 +148,7 @@ def _set_cantilever_beam_problem(dimension:int,
     boundary_conditions.add(neumann_BC_right)
 
     # Create the problem instance
-    problem = Design_IOH_Wrapper(
+    problem = Design_IOH_Wrapper_Instanced(
         nmmcsx= num_mmc,
         nmmcsy= 2,
         instance= instance,
@@ -172,7 +172,7 @@ def _set_cantilever_beam_problem(dimension:int,
 def _set_short_beam_problem(dimension:int, 
                             instance:int,
                             plot_stresses:bool,
-                            run_number:int)->Design_IOH_Wrapper:
+                            run_number:int)->Design_IOH_Wrapper_Instanced:
     """
     Sets up the Short Beam problem.
 
@@ -235,7 +235,7 @@ def _set_short_beam_problem(dimension:int,
     boundary_conditions.add(neumann_BC_right)
 
     # Create the problem instance
-    problem = Design_IOH_Wrapper(
+    problem = Design_IOH_Wrapper_Instanced(
         nmmcsx= num_mmc,
         instance= instance,
         nmmcsy= 1,
@@ -259,7 +259,7 @@ def _set_short_beam_problem(dimension:int,
 def _set_mbb_problem(dimension:int,
                      instance:int,
                      plot_stresses:bool,
-                     run_number:int)->Design_IOH_Wrapper:
+                     run_number:int)->Design_IOH_Wrapper_Instanced:
     """
     Sets up the MBB Beam problem.
 
@@ -330,7 +330,7 @@ def _set_mbb_problem(dimension:int,
     boundary_conditions.add(neumann_BC_top)
 
     # Create the problem instance
-    problem = Design_IOH_Wrapper(
+    problem = Design_IOH_Wrapper_Instanced(
         nmmcsx= num_mmc,
         nmmcsy= 1,
         nelx= NELX,
@@ -354,7 +354,7 @@ def _set_mbb_problem(dimension:int,
 def _set_michell_truss_problem(dimension:int, 
                                instance:int,
                                 plot_stresses:bool,
-                                run_number:int)->Design_IOH_Wrapper:
+                                run_number:int)->Design_IOH_Wrapper_Instanced:
     """
     Sets up the Michell Truss problem.
 
@@ -433,7 +433,7 @@ def _set_michell_truss_problem(dimension:int,
     boundary_conditions.add(neumann_BC_top)
 
     # Create the problem instance
-    problem = Design_IOH_Wrapper(
+    problem = Design_IOH_Wrapper_Instanced(
         nmmcsx= num_mmc,
         nmmcsy= 2,
         nelx= NELX,

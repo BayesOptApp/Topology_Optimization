@@ -2,6 +2,7 @@ import numpy as np
 import time
 from Design_Examples.IOH_Wrappers.IOH_Wrapper import Design_IOH_Wrapper
 from Design_Examples.IOH_Wrappers.IOH_Wrapper_LP import Design_LP_IOH_Wrapper
+from Design_Examples.IOH_Wrappers.IOH_Wrapper_Instanced import Design_IOH_Wrapper_Instanced
 import ioh
 
 class RandomSearchWrapper:
@@ -32,7 +33,7 @@ class RandomSearchWrapper:
         """
         Returns the bounds of the problem.
         """
-        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper, Design_IOH_Wrapper_Instanced)):
             return [self.ioh_prob.bounds.lb[0], self.ioh_prob.bounds.ub[0]]
         elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
             return (-5, 5)
@@ -91,7 +92,7 @@ class RandomSearchWrapper:
         Returns:
             np.ndarray: Mapped solution.
         """
-        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper)):
+        if isinstance(self.ioh_prob, (Design_LP_IOH_Wrapper, Design_IOH_Wrapper, Design_IOH_Wrapper_Instanced)):
             return np.clip(x, self.ioh_prob.bounds.lb[0], self.ioh_prob.bounds.ub[0])
         elif isinstance(self.ioh_prob, ioh.iohcpp.problem.RealSingleObjective):
             return np.clip(x, -5, 5)
