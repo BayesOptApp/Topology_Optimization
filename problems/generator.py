@@ -143,7 +143,9 @@ def _set_cantilever_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.5),
-                                      force_vector=(0.0, -0.25*random_number))
+                                      force_vector=(0.0, -0.25))
+    # neumann_BC_right = PointNeumannBC(location=(1.0,0.5),
+    #                                 force_vector=(0.0, -0.25*random_number))
     
     boundary_conditions.add(neumann_BC_right)
 
@@ -230,8 +232,9 @@ def _set_short_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.0),
-                                      force_vector=(0.0, -0.25/30*random_number))
-    
+                                      force_vector=(0.0, -0.25/30))
+    # neumann_BC_right = PointNeumannBC(location=(1.0,0.0),
+    #                                 force_vector=(0.0, -0.25/30*random_number))  
     boundary_conditions.add(neumann_BC_right)
 
     # Create the problem instance
@@ -324,8 +327,11 @@ def _set_mbb_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_top = PointNeumannBC(location=(0.0,1.0),
-                                      force_vector=(0.0, -0.25/10 * random_number),
+                                      force_vector=(0.0, -0.25/10),
                                       )
+    # neumann_BC_top = PointNeumannBC(location=(0.0,1.0),
+    #                                   force_vector=(0.0, -0.25/10 * random_number),
+    #                                   )
     
     boundary_conditions.add(neumann_BC_top)
 
@@ -427,8 +433,11 @@ def _set_michell_truss_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_top = PointNeumannBC(location=(0.0,0.5),
-                                      force_vector=(-0.25*random_number, 0.0),
+                                      force_vector=(-0.25, 0.0),
                                       )
+    # neumann_BC_top = PointNeumannBC(location=(0.0,0.5),
+    #                                   force_vector=(-0.25*random_number, 0.0),
+    #                                   )
     
     boundary_conditions.add(neumann_BC_top)
 
