@@ -484,7 +484,8 @@ def compute_elemental_lamination_parameters(mesh_grid:MeshGrid2D,
     return V1_e,V3_e
 
 def compute_angle_distribution(V3_e:np.ndarray,
-                               mesh_grid:MeshGrid2D)->Tuple[np.ndarray, np.ndarray]:
+                               mesh_grid:MeshGrid2D,
+                               symmetry_condition:bool)->Tuple[np.ndarray, np.ndarray]:
     '''
     Function to compute the angle distribution of the lamination parameters.
 
@@ -492,6 +493,7 @@ def compute_angle_distribution(V3_e:np.ndarray,
     ------------------
     - V3_e: Array of V3 values for each element
     - mesh_grid: `MeshGrid2D` object containing the mesh grid parameters
+    - symmetry_condition: `bool` object denoting if there's symmetry condition around x-axis.
 
     Returns
     ------------------
@@ -508,12 +510,28 @@ def compute_angle_distribution(V3_e:np.ndarray,
     theta_l = np.zeros((NE, 1))
     theta_r = np.zeros_like(theta_l)
 
-    # Calculate angles based on V1 values
-    for e in range(NE):
-        V1_pos = 0.5*(V3_e[e]+1.0)
-        V1_neg = -0.5*(V3_e[e])
-        theta_l[e] = 0.5*np.arccos(V1_pos)
-        theta_r[e] = 0.5*np.arccos(V1_neg)
+    if not symmetry_condition:
+
+        # Calculate angles based on V1 values
+        for e in range(NE):
+            V1_pos = np.sqrt(0.5*(V3_e[e]+1.0))
+            V1_neg = -np.sqrt(0.5*(V3_e[e]+1.0))
+            theta_l[e] = 0.5*np.arccos(V1_pos)
+            theta_r[e] = 0.5*np.arccos(V1_neg)
+    else:
+        NP, EP = setup_lamination_parameters(NE, mesh_grid.nelx, mesh_grid.nely, symmetry_condition)
+
+        # Calculate angles based on V1 values for symmetric elements
+        for p in range(NP):
+            e = EP[p, 0]
+            V1_pos = np.sqrt(0.5*(V3_e[e]+1.0))
+            V1_neg = -np.sqrt(0.5*(V3_e[e]+1.0))
+            theta_l[e] = 0.5 * np.arccos(V1_pos)
+            theta_r[e] = 0.5 * np.arccos(V1_neg)
+
+            # Mirror the angles for the symmetric elements
+            theta_l[EP[p, 1]] = -theta_l[e]
+            theta_r[EP[p, 1]] = -theta_r[e]
         
 
     return theta_l, theta_r

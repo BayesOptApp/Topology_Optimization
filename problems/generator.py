@@ -17,6 +17,7 @@ ALLOWED_NUMBERS = [*range(1, len(DEFAULT_PROBLEM_NAMES) + 1)]
 def get_problem(problem_id:Union[str,int], 
                 dimension:int,
                 instance:Optional[int]=0, 
+                plot_topology:Optional[bool]=False,
                 plot_stresses:Optional[bool]=False,
                 run_number:Optional[int] = 1,
                 penalty_function:Optional[bool]=True)->Design_IOH_Wrapper_Instanced:
@@ -29,6 +30,7 @@ def get_problem(problem_id:Union[str,int],
         - dimension (`int`): The dimension of the problem.
         - instance (`int`): The instance number for the problem.
         - plot_stresses (`Optional[bool]`): Whether to plot stresses for the problem.
+        - plot_topology (`Optional[bool]`): Whether to plot the topology for the problem.
         - run_number (`Optional[int]`): The run number for the problem instance.
         - penalty_function (`Optional[bool]`): Whether to apply a penalty function to the problem.
 
@@ -57,13 +59,13 @@ def get_problem(problem_id:Union[str,int],
     
     # Now given the parameters, we can import the problem
     if problem_name == "cantilever_beam":
-       problem = _set_cantilever_beam_problem(dimension, instance, plot_stresses, run_number)
+       problem = _set_cantilever_beam_problem(dimension, instance, plot_topology, plot_stresses, run_number)
     elif problem_name == "short_beam":
-        problem = _set_short_beam_problem(dimension, instance, plot_stresses, run_number)
+        problem = _set_short_beam_problem(dimension, instance, plot_topology, plot_stresses, run_number)
     elif problem_name == "mbb":
-        problem = _set_mbb_problem(dimension, instance, plot_stresses, run_number)
+        problem = _set_mbb_problem(dimension, instance, plot_topology, plot_stresses, run_number)
     elif problem_name == "michell_truss":
-        problem = _set_michell_truss_problem(dimension, instance, plot_stresses, run_number)
+        problem = _set_michell_truss_problem(dimension, instance, plot_topology, plot_stresses, run_number)
     else:
         raise ValueError(f"Unknown problem name: {problem_name}")
     
@@ -89,6 +91,7 @@ def get_problem(problem_id:Union[str,int],
 
 def _set_cantilever_beam_problem(dimension:int, 
                                  instance:int,
+                                 plot_topology:bool,
                                  plot_stresses:bool,
                                  run_number:int)->Design_IOH_Wrapper_Instanced:
     """
@@ -143,7 +146,7 @@ def _set_cantilever_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.5),
-                                      force_vector=(0.0, -0.25*random_number))
+                                      force_vector=(0.0, -0.25))
     
     boundary_conditions.add(neumann_BC_right)
 
@@ -157,6 +160,7 @@ def _set_cantilever_beam_problem(dimension:int,
         volfrac= 0.5,
         symmetry_condition= True,
         scalation_mode="unitary",
+        plot_topology=plot_topology,
         plot_variables=plot_stresses,
         cost_function= "compliance",
         use_sparse_matrices= True,
@@ -171,6 +175,7 @@ def _set_cantilever_beam_problem(dimension:int,
 
 def _set_short_beam_problem(dimension:int, 
                             instance:int,
+                            plot_topology:bool,
                             plot_stresses:bool,
                             run_number:int)->Design_IOH_Wrapper_Instanced:
     """
@@ -230,7 +235,7 @@ def _set_short_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.0),
-                                      force_vector=(0.0, -0.25/30*random_number))
+                                      force_vector=(0.0, -0.25/60))
     
     boundary_conditions.add(neumann_BC_right)
 
@@ -244,20 +249,27 @@ def _set_short_beam_problem(dimension:int,
         volfrac= 0.5,
         symmetry_condition= False,
         scalation_mode="unitary",
+        plot_topology=plot_topology,
         plot_variables=plot_stresses,
         cost_function= "compliance",
         use_sparse_matrices= True,
         continuity_check_mode= "discrete",
         run_= run_number,
         boundary_conditions_list= boundary_conditions,
-        problem_aux_name = "short_beam"
+        problem_aux_name = "short_beam",
+        Emin=1e-3,
+        standard_weight=6500.0,
     )
+
+    # Modify the penalties of the problem
+
 
     return problem
 
 
 def _set_mbb_problem(dimension:int,
                      instance:int,
+                     plot_topology:bool,
                      plot_stresses:bool,
                      run_number:int)->Design_IOH_Wrapper_Instanced:
     """
@@ -323,8 +335,8 @@ def _set_mbb_problem(dimension:int,
     boundary_conditions.add(dirichlet_BC_right)
 
     # Add Neumann boundary condition at the right edge
-    neumann_BC_top = PointNeumannBC(location=(0.0,1.0),
-                                      force_vector=(0.0, -0.25/10 * random_number),
+    neumann_BC_top = PointNeumannBC(location=(1.0/NELX,1.0),
+                                      force_vector=(0.0, -0.25/10),
                                       )
     
     boundary_conditions.add(neumann_BC_top)
@@ -339,13 +351,16 @@ def _set_mbb_problem(dimension:int,
         volfrac= 0.5,
         symmetry_condition= False,
         scalation_mode="unitary",
+        plot_topology=plot_topology,
         plot_variables=plot_stresses,
         cost_function= "compliance",
         use_sparse_matrices= True,
         continuity_check_mode= "discrete",
         run_= run_number,
         boundary_conditions_list= boundary_conditions,
-        problem_aux_name = "mbb"
+        problem_aux_name = "mbb",
+        Emin=5e-4,
+        standard_weight=3000.0,
     )
 
     return problem
@@ -353,6 +368,7 @@ def _set_mbb_problem(dimension:int,
 
 def _set_michell_truss_problem(dimension:int, 
                                instance:int,
+                               plot_topology:bool,
                                 plot_stresses:bool,
                                 run_number:int)->Design_IOH_Wrapper_Instanced:
     """
@@ -427,7 +443,7 @@ def _set_michell_truss_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_top = PointNeumannBC(location=(0.0,0.5),
-                                      force_vector=(-0.25*random_number, 0.0),
+                                      force_vector=(-0.25, 0.0),
                                       )
     
     boundary_conditions.add(neumann_BC_top)
@@ -442,6 +458,7 @@ def _set_michell_truss_problem(dimension:int,
         volfrac= 0.5,
         symmetry_condition= True,
         scalation_mode="unitary",
+        plot_topology=plot_topology,
         plot_variables=plot_stresses,
         cost_function= "compliance",
         use_sparse_matrices= True,
@@ -449,10 +466,12 @@ def _set_michell_truss_problem(dimension:int,
         run_= run_number,
         boundary_conditions_list= boundary_conditions,
         problem_aux_name = "michell_truss",
+        Emin= 1e-4,
         plot_modifier_dict = {
             "rotate": True,  # Rotate the plot for better visualization
             "rotate_angle": 90,  # Rotate by 90 degrees
-        }
+        },
+        standard_weight=1500.0,
     )
 
     return problem

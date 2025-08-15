@@ -1072,6 +1072,10 @@ class Mesh:
         # Loop for each element
         for el in range(self.__mesh_grid.nel_total):
 
+            # DO NOT EVALUATE VOID ELEMENTS
+            # if abs(density_vector[0,el]) < 1e-12:
+            #     continue
+
             # IN THE ACTUAL VARIABLE STIFFNESS MODELING, ELEMENTAL V1 & V3 VALUES
             # SHOULD BE TAKEN
             # V1 = 0.0; V3 = 0.0;

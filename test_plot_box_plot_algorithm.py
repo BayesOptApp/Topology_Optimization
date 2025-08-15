@@ -50,7 +50,7 @@ x_label_map = {
     'x12': '$\\theta_{3}$',
     'x13': '$l_3$',
     'x14': '$t_3$',
-    'x15': '$V_{r}$',
+    'x15': '$R_{r}$',
     'x16': '$V_{3,1}$',
     'x17': '$V_{3,2}$'
 }
@@ -230,7 +230,7 @@ fig = px.box(df_long,
              color_discrete_map=color_discrete_map,
              points=False,
              title='Box Plot of All x Variables by Algorithm',
-             labels={'value': 'Parameter Value', 'variable': 'Variable'})
+             labels={'value': 'Normalized Range', 'variable': 'Variable'})
 
 fig.update_layout(
     xaxis=dict(tickfont=dict(size=17)),
@@ -258,7 +258,7 @@ fig2 = px.box(df_long_2,
              color_discrete_map=color_discrete_map,
              points=False,
              title='Box Plot of All x Variables by Algorithm',
-             labels={'value': 'Parameter Value', 'variable': 'Variable'})
+             labels={'value': 'Normalized Range', 'variable': 'Variable'})
 
 fig2.update_layout(
     xaxis=dict(tickfont=dict(size=17)),

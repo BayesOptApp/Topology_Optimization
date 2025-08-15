@@ -107,6 +107,9 @@ class InstancedDesign(Design):
                          material_properties_dict,
                          **kwargs)
         
+        # PLACEHOLDER -> Modify the maximum default length
+        #self._length_norm = self._length_norm/0.4 
+        
         # Instance number
         assert isinstance(instance, int), "Instance must be an integer."
         assert instance >= 0, "Instance must be a non-negative integer."

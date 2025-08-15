@@ -271,7 +271,7 @@ class Design_LP(Design):
 
 
         # Call the plot function
-        pl1:Plotter = plot_lamination_parameters_distribution(x=x_array,
+        pl1,pl2 = plot_lamination_parameters_distribution(x=x_array,
                                                 TO_mat=TO_mat,
                                                 Emin=self.Emin,
                                                 E0=self.E0,
@@ -286,7 +286,7 @@ class Design_LP(Design):
         )
 
         # Show the plot
-        return pl1
+        return pl1,pl2
 
 
     # ------------------------------------------------------------------------

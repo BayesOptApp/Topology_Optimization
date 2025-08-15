@@ -19,7 +19,11 @@ from boundary_conditions import BoundaryConditionList
 from material_parameterizations.lpim import LaminationMasterNode
 # Import plotting functions
 from utils.Helper_Plots import plotNodalVariables, plotNodalVariables_pyvista
-from utils.Helper_Plots import plot_LP_Parameters, plot_LP_Parameters_pyvista, plot_LP_Parameters_pyvista_2
+from utils.Helper_Plots import (plot_LP_Parameters, 
+                                plot_LP_Parameters_pyvista, 
+                                plot_LP_Parameters_pyvista_2,
+                                plot_fiber_angle_quivers,
+                                plot_fiber_angle_quivers_matplotlib)
 from pyvista import Plotter
 
 from typing import Optional, Union
@@ -657,7 +661,8 @@ def plot_lamination_parameters_distribution(x:np.ndarray,
 
     # Compute the angle distribution
     theta_l, theta_r = compute_angle_distribution(V3_e=V3_e,
-                                                  mesh_grid=mesh.MeshGrid)
+                                                  mesh_grid=mesh.MeshGrid,
+                                                  symmetry_condition=symmetry_cond)
 
     # PLot the lamination parameters
 
@@ -669,7 +674,24 @@ def plot_lamination_parameters_distribution(x:np.ndarray,
                         V3_e=V3_e,
                         plot_modifier_dict=plot_modifier_dict)
     
-    return pyvista_pl
+    # Add the angle distribution to the plot
+    pyvista_pl_2 = plot_fiber_angle_quivers(N_static=mesh.MeshGrid.coordinate_grid,
+                        element_map=mesh.MeshGrid.E,
+                        mat_ind = (density_vec>Emin),
+                        theta_l=theta_l,
+                        theta_r=theta_r,
+                        scale=1,
+                        plot_modifier_dict=plot_modifier_dict,
+                        )
+    # mpl = plot_fiber_angle_quivers_matplotlib(N_static=mesh.MeshGrid.coordinate_grid,
+    #                     element_map=mesh.MeshGrid.E,
+    #                     mat_ind = (density_vec>Emin),
+    #                     theta_l=theta_l,
+    #                     theta_r=theta_r,
+    #                     scale=0.95)
+    
+    
+    return pyvista_pl, pyvista_pl_2
 
 
 

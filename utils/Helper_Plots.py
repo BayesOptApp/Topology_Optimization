@@ -930,4 +930,193 @@ def plot_LP_Parameters_pyvista_2(N_static:np.ndarray,
         # Close the thread of the figure
         #p.close()
         return p
+
+
+import numpy as np
+import pyvista as pv
+
+def plot_fiber_angle_quivers(N_static: np.ndarray,
+                              element_map: np.ndarray,
+                              mat_ind: np.ndarray,
+                              theta_l: np.ndarray,
+                              theta_r: np.ndarray,
+                              scale: float = 1.0,
+                              plot_modifier_dict: dict = None,
+                              **kwargs) -> pv.Plotter:
+    """
+    Plot left and right fiber angle vectors (quiver-style) using PyVista.
+
+    Args:
+    - N_static: Nodal coordinates (Nx3), typically with columns [x, y, z] (but only y, z used here)
+    - element_map: Element connectivity (Ex5), assuming format [element_id, n1, n2, n3, n4]
+    - mat_ind: Boolean mask for material elements (E,)
+    - theta_l: Left fiber angles per element (E,)
+    - theta_r: Right fiber angles per element (E,)
+    - scale: Scaling factor for arrows
+    - plot_modifier_dict: Optional dict like {"rotate": True, "rotate_angle": 90.0}
+
+    Returns:
+    - PyVista Plotter object
+    """
+
+    # Extract coordinates in Y-Z plane and pad X = 0
+    verts = np.column_stack((N_static[:, 1], N_static[:, 2], np.zeros(N_static.shape[0])))
+
+    # Filter elements
+    mat_ind = np.squeeze(mat_ind)
+    element_map = element_map[mat_ind, :]
+    theta_l = theta_l[mat_ind]
+    theta_r = theta_r[mat_ind]
+
+    centroids = []
+    directions_l = []
+    directions_r = []
+
+    for elem, angle_l, angle_r in zip(element_map, theta_l, theta_r):
+        # Get node indices for the quad
+        node_ids = elem[1:5]
+        coords = verts[node_ids]
+
+        # Compute centroid
+        centroid = coords.mean(axis=0)
+
+        # Convert angles (degrees) to unit vectors in X-Y plane
+        #angle_l_rad = np.deg2rad(angle_l)
+        #angle_r_rad = np.deg2rad(angle_r)
+
+        vec_l = np.array([np.cos(angle_l)[0], np.sin(angle_l)[0],0.0])  # in X-Y plane
+        vec_r = np.array([np.cos(angle_r)[0], np.sin(angle_r)[0],0.0])
+
+        centroids.append(centroid)
+        directions_l.append(vec_l * scale)
+        directions_r.append(vec_r * scale)
+
+    centroids = np.array(centroids)
+    directions_l = np.array(directions_l)
+    directions_r = np.array(directions_r)
+
+    # Create pyvista plotter
+    p = pyvista.Plotter(border = False,
+                            off_screen=True,
+                            shape=(1, 2),
+                            window_size=[8192, 6144]
+                            )
+    p.enable_image_style()
+
+     # Cylinder glyph geometry
+    cylinder = pv.Cylinder(center=(0, 0, 0), direction=(1, 0, 0), radius=0.12, height=1.0, resolution=12)
+
+    # Apply rotation if requested
+    if plot_modifier_dict and plot_modifier_dict.get("rotate", False):
+        angle = plot_modifier_dict.get("rotate_angle", 0.0)
+        centroids = pv.PolyData(centroids)
+        centroids.rotate_z(angle, inplace=True)
+        directions_l = pv.PolyData(directions_l)
+        directions_l.rotate_z(angle, inplace=True)
+        directions_r = pv.PolyData(directions_r)
+        directions_r.rotate_z(angle, inplace=True)
+        centroids = centroids.points
+        directions_l = directions_l.points
+        directions_r = directions_r.points
+    
+    # Left fiber glyphs
+    pd_l = pv.PolyData(centroids)
+    pd_l["vectors"] = directions_l
+    glyphs_l = pd_l.glyph(orient="vectors", scale=False, factor=1.0, geom=cylinder)
+
+    # Right fiber glyphs
+    pd_r = pv.PolyData(centroids)
+    pd_r["vectors"] = directions_r
+    glyphs_r = pd_r.glyph(orient="vectors", scale=False, factor=1.0, geom=cylinder)
+
+    # Plot θ_l vectors
+    p.subplot(0, 0)
+    p.add_mesh(glyphs_l, color='blue', line_width=2)
+    p.add_text("Left fibre angle ($\\alpha_l$)", font_size=14, color='black')
+    p.camera_position = 'xy'
+    p.background_color = "white"
+
+    # Plot θ_r vectors
+    p.subplot(0, 1)
+    p.add_mesh(glyphs_r, color='red', line_width=2)
+    p.add_text("Right fibre angle ($\\alpha_r$)", font_size=14, color='black')
+    p.camera_position = 'xy'
+    p.background_color = "white"
+
+    return p
+
+
+import matplotlib.pyplot as plt
+
+def plot_fiber_angle_quivers_matplotlib(N_static: np.ndarray,
+                                         element_map: np.ndarray,
+                                         mat_ind: np.ndarray,
+                                         theta_l: np.ndarray,
+                                         theta_r: np.ndarray,
+                                         scale: float = 1.0,
+                                         figsize=(12, 6)) -> None:
+    """
+    Plot left and right fiber angle vectors using matplotlib's quiver (2D) plots.
+
+    Args:
+    - N_static: Node coordinates (Nx3), columns are [x, y, z] (we use y, z)
+    - element_map: Element connectivity (Ex5), with format [elem_id, n1, n2, n3, n4]
+    - mat_ind: Boolean mask (E,)
+    - theta_l, theta_r: Left/right fiber angles in degrees (E,)
+    - scale: Arrow length scaling factor
+    - figsize: Figure size in inches
+    """
+
+    # Extract Y and Z coordinates (X ignored)
+    coords_2d = N_static[:, 1:3]
+
+    # Filter valid elements
+    mat_ind = np.squeeze(mat_ind)
+    element_map = element_map[mat_ind]
+    theta_l = theta_l[mat_ind]
+    theta_r = theta_r[mat_ind]
+
+    centroids = []
+    vecs_l = []
+    vecs_r = []
+
+    for elem, th_l, th_r in zip(element_map, theta_l, theta_r):
+        node_ids = elem[1:5]
+        pts = coords_2d[node_ids]
+        centroid = pts.mean(axis=0)
+
+        angle_l = float(th_l)
+        angle_r = float(th_r)
+
+        v_l = np.array([np.cos(angle_l), np.sin(angle_l)]) 
+        v_r = np.array([np.cos(angle_r), np.sin(angle_r)]) 
+
+        centroids.append(centroid)
+        vecs_l.append(v_l)
+        vecs_r.append(v_r)
+
+    centroids = np.array(centroids)
+    vecs_l = np.array(vecs_l)
+    vecs_r = np.array(vecs_r)
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    titles = [r"Left fiber angle $\alpha_l$", r"Right fiber angle $\alpha_r$"]
+    vectors = [vecs_l, vecs_r]
+
+    for ax, title, vecs in zip(axes, titles, vectors):
+        ax.quiver(centroids[:, 0], centroids[:, 1],   # Y and Z positions
+                  vecs[:, 0], vecs[:, 1],
+                  angles='xy', scale_units='xy', scale=scale,
+                  color='tab:blue', width=0.003)
+
+        ax.set_aspect('equal')
+        ax.set_title(title, fontsize=14)
+        ax.set_xlabel("Y")
+        ax.set_ylabel("Z")
+        ax.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
        

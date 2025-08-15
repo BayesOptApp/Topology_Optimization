@@ -41,13 +41,14 @@ exp_types = ("Concurrent", "Sequential")
 material_definitions = ("isotropic", "orthotropic")
 OFFICIAL_MATERIAL_DEFINITION_IDX = {"Concurrent": 0, "Sequential": 1}
 
-fig, axs = plt.subplots(1, 2, figsize=(18, 8), sharey=True)
+fig, axs = plt.subplots(1, 1, figsize=(18, 8), sharey=True)
 legend_lines = []
 legend_labels = []
 
-for i, material in enumerate(material_definitions):
-    ax = axs[i]
-    ax.set_title(f"{material.capitalize()} Material")
+for i, material in enumerate([material_definitions[1]]):
+    ax = axs
+    #ax.set_title(f"{material.capitalize()} Material")
+    ax.set_title("Convergence Plot")
     
     for exp_type in exp_types:
         material_idx = OFFICIAL_MATERIAL_DEFINITION_IDX[exp_type]
@@ -120,13 +121,15 @@ for i, material in enumerate(material_definitions):
     ax.set_yscale('log')
     ax.set_xlim(0, 1000)
 
-axs[0].set_ylabel("Compliance [best-so-far]")
+axs.set_ylabel("Modified Compliance [best-so-far]")
 fig.legend(legend_lines, legend_labels, loc='lower center', ncol=6, fontsize=9)
+
+fig.savefig("convergence_plot_sample.pgf", bbox_inches='tight')
 #plt.suptitle("Convergence for Isotropic vs Orthotropic Materials")
-plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+#plt.tight_layout(rect=[0, 0.05, 1, 0.95])
 plt.show()
 
 
 # Save the figure
 
-#plt.savefig("convergence_plot_isotropic.pgf")
+#plt.savefig("convergence_plot_sample.pgf")

@@ -8,7 +8,6 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
 pio.renderers.default = 'browser'
-pio.templates.default = "plotly_white"
 
 from iohinspector import DataManager, turbo_align
 from pathlib import Path
@@ -228,30 +227,104 @@ df_gap["algorithm_name"] = pd.Categorical(
     ordered=True
 )
 
-# Plot: Box plot of gaps per algorithm, grouped by mode
-fig = px.box(
-    df_gap,
-    x="algorithm_name",
-    y="current_y_best",
-    color="exp_type",
-    title="Compliance Value Distribution by Algorithm and Experiment Type",
-    labels={
-        "current_y_best": "Compliance",
-        "algorithm_name": "Algorithm",
-        "exp_type": "Mode"
-    },
-    color_discrete_map=color_discrete_map,
-    range_y=(4e-02,70),
-    log_y=True,
-    points=False,
+# # Plot: Box plot of gaps per algorithm, grouped by mode
+# fig = px.box(
+#     df_gap,
+#     x="algorithm_name",
+#     y="current_y_best",
+#     color="exp_type",
+#     title="Modified Compliance Value Distribution by Algorithm and Strategy after full budget",
+#     labels={
+#         "current_y_best": "Compliance",
+#         "algorithm_name": "Algorithm",
+#         "exp_type": "Mode"
+#     },
+#     range_y=(4e-02,70),
+#     log_y=True,
+#     points=False,
     
-)
+# )
 
+# # Step 1: Compute mean compliance per (algorithm_name, exp_type)
+# means = (
+#     df_gap.groupby(["algorithm_name", "exp_type"])["current_y_best"]
+#     .mean()
+#     .reset_index()
+# )
+
+# # Step 2: Build compound x labels used by plotly express internally
+# means["x_label"] = means["algorithm_name"].astype(str)
+
+
+
+
+# fig.update_layout(
+#     boxmode="group",
+#     xaxis_title="Algorithm",
+#     yaxis_title="Modified Compliance",
+#     legend_title="Optimization Approach"
+# )
+
+# # Step 3: Add dashed horizontal lines to indicate the mean for each box
+# # for _, row in means.iterrows():
+# #     fig.add_shape(
+# #         type="line",
+# #         x0=row["x_label"],
+# #         x1=row["x_label"],
+# #         y0=row["current_y_best"],
+# #         y1=row["current_y_best"],
+# #         xref="x",
+# #         yref="y",
+# #         line=dict(color="red", width=2, dash="dash")
+# #     )
+
+# fig.add_trace(go.Scatter(
+#     x=means["x_label"],
+#     y=means["current_y_best"],
+#     mode="markers",
+#     marker=dict(color="orange", size=8, symbol="x"),
+#     name="Mean",
+#     showlegend=True
+# ))
+
+# Create an empty figure
+fig = go.Figure()
+
+# Define your modes and a color map
+modes = ["Concurrent", "Sequential"]
+colors = {
+    "Concurrent": "blue",
+    "Sequential": "red"
+}
+
+# Plot each (algorithm, mode) pair with appropriate offsets
+for mode in modes:
+    df_mode = df_gap[df_gap["exp_type"] == mode]
+    for algorithm in df_gap["algorithm_name"].cat.categories:
+        y_vals = df_mode[df_mode["algorithm_name"] == algorithm]["current_y_best"]
+        if not y_vals.empty:
+            fig.add_trace(go.Box(
+                y=y_vals,
+                x=[algorithm] * len(y_vals),  # group by algorithm
+                name=mode,  # will appear in legend
+                marker_color=colors[mode],
+                boxpoints=False,
+                legendgroup=mode,
+                offsetgroup=mode,
+                boxmean=True,  # show mean
+                showlegend=(algorithm == df_gap["algorithm_name"].cat.categories[0])  # one legend per mode
+            ))
+
+# Layout
 fig.update_layout(
-    boxmode="group",
+    #title="Modified Compliance Value Distribution by Algorithm and Strategy after full budget",
+    yaxis_title="Modified Compliance",
     xaxis_title="Algorithm",
-    yaxis_title="Compliance",
-    legend_title="Experiment Type"
+    legend_title="Optimization Approach",
+    boxmode="group",  # Important: enables grouping by offsetgroup
+    yaxis_type="log",
+    yaxis_range=[np.log10(0.04), np.log10(70)],  # equivalent to range_y=(4e-02, 70)
 )
 
 fig.show()
+#fig.write_image("arfito2.pdf")

@@ -153,11 +153,11 @@ class Design:
 
         
         # Store the references as class properties
-        self.__default_length:float = length
-        self.__default_thickness:float = thickness
-        self.__default_angle:float = angle
-        self.__default_lx:float = lx
-        self.__default_ly:float = ly
+        self._default_length:float = length
+        self._default_thickness:float = thickness
+        self._default_angle:float = angle
+        self._default_lx:float = lx
+        self._default_ly:float = ly
 
         # Set the scalation mode
         self.scalation_mode = scalation_mode
@@ -227,11 +227,11 @@ class Design:
                                             add_noise:bool)->None:
 
         # Write again the values
-        lx = self.__default_lx
-        ly = self.__default_ly
-        angle = self.__default_angle
-        length = self.__default_length
-        thickness = self.__default_thickness
+        lx = self._default_lx
+        ly = self._default_ly
+        angle = self._default_angle
+        length = self._default_length
+        thickness = self._default_thickness
 
         # Generate Member variable storing the MMCs
         self.__list_of_MMC:List[MMC] = []
@@ -426,12 +426,15 @@ class Design:
         ## TODO: Set the effect of this normalization
         
         #self.__length_norm:float = 4*self.__default_length
-        self._thickness_norm:float = self.__default_thickness
+        self._thickness_norm:float = self._default_thickness
 
         if self.__symmetry_condition == True:
             self._length_norm:float = math.sqrt(self.__nelx**2+(self.__nely/2)**2)
         else:
             self._length_norm:float = math.sqrt(self.__nelx**2+self.__nely**2)
+
+        ### NOTE: AAddition to hold the variation in instancing
+        self._length_norm = 1.5*self._length_norm
         #self.__length_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
         #self.__thickness_norm:float = 0.25*math.sqrt(self.__nelx**2+self.__nely**2)
 
@@ -1331,11 +1334,12 @@ class Design:
         # Check if the matplotlib is installed
         try:
             import matplotlib.pyplot as plt
+            from matplotlib.transforms import Affine2D
         except ImportError:
             raise ImportError("Matplotlib is not installed. Please install it to use this function.")
         
         # Get the kwarguments
-        isinteractive:bool = kwargs.pop('interactive',True)
+        isinteractive:bool = kwargs.pop('interactive',False)
         
         topo:np.ndarray = self._topo.return_floating_topology()
 
@@ -1344,11 +1348,39 @@ class Design:
         # Initialise the figure
         fig, ax = plt.subplots(figsize=(10, 5))
 
-        ax.imshow(topo, 
+        
+
+        im = ax.imshow(topo, 
                   origin='lower',
                   cmap='Greys',  interpolation='nearest')
 
         ax.set_aspect('equal')
+
+        # Rotate the plot given the parameters
+        if self._plot_modifier_dict['rotate']:
+            angle_deg = self._plot_modifier_dict['rotate_angle']  # degrees
+
+            # Rotate around the image center
+            #cx, cy = self.nelx / 2.0, self.nely / 2.0
+            rot = Affine2D().rotate_deg_around(0, 0, angle_deg)
+
+            # Apply transform to the image (artist), not the axes
+            im.set_transform(rot + ax.transData)
+
+            # Expand axes to fit the rotated image
+            corners = np.array([[0, 0], [self.nelx, 0], [self.nelx, self.nely], [0, self.nely]])
+            rc = rot.transform(corners)
+            (xmin, ymin), (xmax, ymax) = rc.min(0), rc.max(0)
+            ax.set_xlim(xmin, xmax)
+            ax.set_ylim(ymin, ymax)
+            ax.set_aspect('equal')
+        
+        # Set off the ticks
+        #ax.set_axis_off()
+
+        # Remove the numbers of the ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
 
         return fig, ax
 
@@ -1640,11 +1672,11 @@ class Design:
             D[D < 1/2] = 0
             d_MST = D.sum()
 
-            pt: Point = Point(self.nelx, self.nely/2)
-            line: LineString = LineString([(0,1/2), (0,self.nely-1/2)])
+            #pt: Point = Point(self.nelx, self.nely/2)
+            #line: LineString = LineString([(0,1/2), (0,self.nely-1/2)])
 
-            if (d_pt := geo.distance(pt)) > 1/2 : d_MST += d_pt
-            if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
+            #if (d_pt := geo.distance(pt)) > 1/2 : d_MST += d_pt
+            #if (d_line := geo.distance(line)) > 1/2 : d_MST += d_line
             
             return d_MST if not np.isnan(d_MST) else np.sqrt(self.nelx**2 + self.nely**2)
         

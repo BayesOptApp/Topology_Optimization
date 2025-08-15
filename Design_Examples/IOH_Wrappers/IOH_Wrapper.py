@@ -390,7 +390,7 @@ class Design_IOH_Wrapper(Design,ioh.problem.RealSingleObjective):
         
         pen_sum = sum(penalty_array)
 
-        if pen_sum > 0:
+        if pen_sum > 1e-12:
             # If the penalty is greater than 0, then the target is not computed
             # and the penalty is returned
 

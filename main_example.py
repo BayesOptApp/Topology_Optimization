@@ -19,13 +19,15 @@ import os
 import ioh
 import numpy as np
 from Algorithms.cma_es_wrapper import CMA_ES_Optimizer_Wrapper
+from Algorithms.random_search_wrapper import RandomSearchWrapper
+from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int =66
-RUN_E:int =  5004
+RANDOM_SEED:int = 7373
+RUN_E:int =  5131
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -42,7 +44,7 @@ triggers = [
 logger = ioh.logger.Analyzer(
     root=os.getcwd(),                  # Store data in the current working directory
     folder_name=f"./Figures_Python/Run_{RUN_E}",       # in a folder named: './Figures_Python/Run_{run_e}'
-    algorithm_name="CMA-ES",    # meta-data for the algorithm used to generate these results
+    algorithm_name="TuRBO-1",    # meta-data for the algorithm used to generate these results
     store_positions=True,               # store x-variables in the logged files
     triggers= triggers,
 
@@ -60,11 +62,12 @@ logger = ioh.logger.Analyzer(
 
 # Get the problem 
 ioh_prob = get_problem(
-    problem_id=4,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=20,  # Dimension of the problem
+    problem_id=2,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
+    dimension=40,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=True,  # Set to True if you want to plot the stresses
-    instance=7,
+    plot_topology=True,
+    instance=5,
 )
 
 # Track the number of Finite Element Evaluations (n_evals)
@@ -77,15 +80,23 @@ ioh_prob.attach_logger(logger)
 cma_es_optimizer = CMA_ES_Optimizer_Wrapper(
     ioh_problem=ioh_prob,  # The problem instance
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    sigma0=0.25,  # Initial standard deviation for the CMA-ES algorithm
+    sigma0=0.15,  # Initial standard deviation for the CMA-ES algorithm
 )
 
+# rs_optimizer = RandomSearchWrapper(
+#     problem=ioh_prob  # The problem instance
+# )
+
+# tr_opt = Turbo_1_Wrapper(
+#     ioh_prob=ioh_prob,  # The problem instance
+#     batch_size=1,
+# )
 
 #Run the optimization process
-cma_es_optimizer(restarts=0, # Number of restarts for the CMA-ES algorithm
-                 tolfun=1e-7, # Tolerance for the function value
-                 max_f_evals=2000 # Maximum number of function evaluations
-                 )
+cma_es_optimizer(budget=5000, random_seed=RANDOM_SEED)
+#rs_optimizer(budget=5000,random_seed=RANDOM_SEED)
+
+#tr_opt(total_budget=5000, random_seed=RANDOM_SEED, n_DoE=3*10)
 
 ioh_prob.reset()
 # Close the logger
