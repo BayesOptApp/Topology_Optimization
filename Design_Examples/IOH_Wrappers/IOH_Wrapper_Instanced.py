@@ -38,6 +38,8 @@ from utils.Topology import Topology
 import ioh
 from ioh.iohcpp import RealConstraint
 
+import matplotlib.pyplot as plt
+
 # Import the boundary conditions
 from boundary_conditions import BoundaryConditionList, LineDirichletBC, PointDirichletBC, LineNeumannBC, PointNeumannBC
 
@@ -68,7 +70,8 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
                  E0:float = 1.0, 
                  Emin:float = 1e-9,
                  use_sparse_matrices:bool = True,
-                 plot_variables:bool= True,
+                 plot_topology:bool = True,
+                 plot_variables:bool= False,
                  cost_function:str = "compliance",
                  run_:int = 0,
                  continuity_check_mode:Optional[str]=CONTINUITY_CHECK_MODES[0],
@@ -99,6 +102,7 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         - Emin: Setting of the Ersatz Material; to be numerically close to 0
         - E0: Setting the Material interpolator (close to 1)
         - use_sparse_matrices: Check to use sparse matrices to run the optimisation algorithm
+        - plot_topology: set to plot the topology generated in the process
         - plot_variables: set to plot the variables generated in the process
         - cost_function: the definition of the cost function to compute the target (so far only two options)
         - run_: The run number for the problem instance
@@ -141,6 +145,9 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         self.__volfrac:float = volfrac
         bounds = ioh.iohcpp.RealBounds(self.problem_dimension, 0.0, 1.0)
         optimum = ioh.iohcpp.RealSolution([0]* self.problem_dimension, 0.0)
+
+        # Append the plot topology property
+        self._plot_topology:bool = plot_topology
 
         # Initialize the `actual_volume_excess`
         self.actual_volume_excess = 0.0
@@ -379,6 +386,8 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         - target (`float`): target value evaluation (raw)
         """
 
+        
+
         # Update the volume fraction
         self.actual_volume_excess = self.compute_actual_volume_excess(x)
 
@@ -392,12 +401,22 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         
         pen_sum = sum(penalty_array)
 
-        if pen_sum > 0:
+        if pen_sum > 1e-12:
             # If the penalty is greater than 0, then the target is not computed
             # and the penalty is returned
 
             # Stop the timer
             self.evaluation_time = time.perf_counter() - start_time
+
+            # Plot the topology if the flag is set
+            if self.plot_topology:
+                fig, ax = self.plot_discrete_design()
+
+                # Save the figure
+                fig_name = f"iter{self.state.evaluations+1}_topology_{1}_{pen_sum}.png"
+                global_name = f"./Figures_Python/Run_{self.current_run}/{fig_name}"
+                plt.savefig(global_name)
+                plt.close(fig)
             return pen_sum
         
         # Change the variable dependency
@@ -421,8 +440,21 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         
         # Extract the evaluation time
         self.evaluation_time = time.perf_counter() - start_time
+
+        
+
         # Update the number of evaluations
         self._n_evals += 1
+
+        # Plot the topology if the flag is set
+        if self.plot_topology:
+            fig, ax = self.plot_discrete_design()
+
+            # Save the figure
+            fig_name = f"iter{self.state.evaluations+1}_topology_{1}_{target}.png"
+            global_name = f"./Figures_Python/Run_{self.current_run}/{fig_name}"
+            plt.savefig(global_name)
+            plt.close(fig)
 
         return target
     #def enforce_bounds(self, weight, enforced, exponent):
@@ -638,5 +670,47 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         else:
             raise ValueError("The standard weight must be a positive float value")
     
+    @property
+    def plot_topology(self)->bool:
+        return self._plot_topology
 
-    
+    @plot_topology.setter
+    def plot_topology(self,new_value:bool)->None:
+        self._plot_topology = bool(new_value)
+
+
+        
+    # NOTE: This is a rewriting of the print (or __str__) method to have information about the range of variation
+    #       in the physical space
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the design instance.
+        """
+
+        # Get the auxiliary name
+        whole_name = self.meta_data.name
+
+        # Extract the auxiliary name after the last "_"
+        aux_name = whole_name.split(self.problem_name)[-1].removeprefix("_")
+
+        base_string:str = f"IID[{self._instance}] for problem ({aux_name}) generates the following physical ranges:\n"
+
+
+        # Start a loop for all the loaded MMCs
+        for idx, _ in enumerate(self.list_of_MMC):
+            base_string += f"BEAM {idx+1}: X_0=[{self._range_MMCs[0][0]*self._pos_X_norm},{self._range_MMCs[0][1]*self._pos_X_norm}], \t"
+            base_string += f"Y_0=[{self._range_MMCs[1][0]*self._pos_Y_norm},{self._range_MMCs[1][1]*self._pos_Y_norm}], \t"
+            base_string += f"Theta=[{self._range_MMCs[2][0]*np.pi},{self._range_MMCs[2][1]*np.pi}], \t"
+            base_string += f"L=[{self._range_MMCs[3][0]*self._length_norm},{self._range_MMCs[3][1]*self._length_norm}], \t"
+            base_string += f"T=[{self._range_MMCs[4][0]*self._thickness_norm},{self._range_MMCs[4][1]*self._thickness_norm}] \n"
+
+
+        return base_string
+
+    def write_ranges_to_file(self, file_path: str) -> None:
+        """
+        Writes the physical ranges of the design to a file.
+        """
+        with open(file_path, 'w') as f:
+            f.write(self.__str__())
