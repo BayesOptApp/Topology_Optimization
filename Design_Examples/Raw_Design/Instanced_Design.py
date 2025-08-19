@@ -152,7 +152,7 @@ class InstancedDesign(Design):
             # Recover the original problem without restrictions
             self._range_MMCs = np.array([[0, 1],  # pos_X
                                           [0, 1],  # pos_Y
-                                            [0, np.pi],  # angle
+                                            [0, 1],  # angle
                                             [0, 1],  # length
                                             [0, 1]])  # thickness
         
@@ -160,7 +160,7 @@ class InstancedDesign(Design):
             # Set the lower bound of range of variation
             self._range_MMCs = np.array([[0, COVERAGE_FRACTION],  # pos_X
                                           [0, COVERAGE_FRACTION],  # pos_Y
-                                          [0, np.pi],  # angle
+                                          [0, 1],  # angle
                                           [0, COVERAGE_FRACTION],  # length
                                           [0, COVERAGE_FRACTION]])  # thickness
         
@@ -168,7 +168,7 @@ class InstancedDesign(Design):
             # Set the upper bound of range of variation
             self._range_MMCs = np.array([[1-COVERAGE_FRACTION, 1],  # pos_X
                                           [1-COVERAGE_FRACTION, 1],  # pos_Y
-                                          [0, np.pi],  # angle
+                                          [0, 1],  # angle
                                           [1-COVERAGE_FRACTION, 1],  # length
                                           [1-COVERAGE_FRACTION, 1]])  # thickness
 

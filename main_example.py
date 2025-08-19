@@ -26,8 +26,8 @@ from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int = 7375
-RUN_E:int =  5135
+RANDOM_SEED:int = 7380
+RUN_E:int =  5141
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -63,11 +63,11 @@ logger = ioh.logger.Analyzer(
 # Get the problem 
 ioh_prob = get_problem(
     problem_id=3,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=40,  # Dimension of the problem
+    dimension=20,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
     plot_stresses=False,  # Set to True if you want to plot the stresses
     plot_topology=True, # Set to True if you want to plot the topology (black and white display)
-    instance=0,
+    instance=1,
 )
 
 # Write the ranges to same directory as log
@@ -79,11 +79,38 @@ logger.watch(ioh_prob,"n_evals")
 # Attach the logger to the problem
 ioh_prob.attach_logger(logger)
 
+x0_init = np.zeros((ioh_prob.meta_data.n_variables,))
+
+x0_init[0] = 0.5  # Set initial value for the first variable
+x0_init[1] = 0.0  # Set initial value for the second variable
+x0_init[3] = 1  # Set initial value for the third variable
+x0_init[4] = 0.25  # Set initial value for the fourth variable
+
+x0_init[5] = 0.25  # Set initial value for the fifth variable
+x0_init[6] = 1.0  # Set initial value for the sixth variable
+x0_init[7] = 0.0  # Set initial value for the seventh variable
+x0_init[8] = 1  # Set initial value for the eighth variable
+x0_init[9] = 0.25  # Set initial value for the ninth variable
+
+# Set initial values for the tenth variable
+x0_init[10] = 0.25  # Set initial value for the tenth variable
+x0_init[11] = 1/3  # Set initial value for the eleventh variable
+x0_init[12] = 1/6  # Set initial value for the twelfth variable
+x0_init[13] = 2/3  # Set initial value for the thirteenth variable
+x0_init[14] = 0.25  # Set initial value for the fourteenth variable
+
+x0_init[15] = 0.65  # Set initial value for the fifteenth variable
+x0_init[16] = 1/3  # Set initial value for the sixteenth variable
+x0_init[17] = 2/3  # Set initial value for the seventeenth variable
+x0_init[18] = 1  # Set initial value for the eighteenth variable
+x0_init[19] = 0.25  # Set initial value for the nineteenth variable
+
 # Set an instance of the CMA-ES optimizer
 cma_es_optimizer = CMA_ES_Optimizer_Wrapper(
     ioh_problem=ioh_prob,  # The problem instance
+    x0=x0_init,  # Initial solution for the CMA-ES algorithm
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    sigma0=0.2,  # Initial standard deviation for the CMA-ES algorithm
+    sigma0=0.1,  # Initial standard deviation for the CMA-ES algorithm
 )
 
 

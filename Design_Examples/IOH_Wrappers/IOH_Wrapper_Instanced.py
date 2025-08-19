@@ -701,7 +701,7 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
         for idx, _ in enumerate(self.list_of_MMC):
             base_string += f"BEAM {idx+1}: X_0=[{self._range_MMCs[0][0]*self._pos_X_norm},{self._range_MMCs[0][1]*self._pos_X_norm}], \t"
             base_string += f"Y_0=[{self._range_MMCs[1][0]*self._pos_Y_norm},{self._range_MMCs[1][1]*self._pos_Y_norm}], \t"
-            base_string += f"Theta=[{self._range_MMCs[2][0]},{self._range_MMCs[2][1]}], \t"
+            base_string += f"Theta=[{self._range_MMCs[2][0]*np.pi},{self._range_MMCs[2][1]*np.pi}], \t"
             base_string += f"L=[{self._range_MMCs[3][0]*self._length_norm},{self._range_MMCs[3][1]*self._length_norm}], \t"
             base_string += f"T=[{self._range_MMCs[4][0]*self._thickness_norm},{self._range_MMCs[4][1]*self._thickness_norm}] \n"
 
