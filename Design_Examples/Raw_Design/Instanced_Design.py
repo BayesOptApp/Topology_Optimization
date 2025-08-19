@@ -60,6 +60,9 @@ SCALATION_MODES = ("Bujny","unitary")
 # Continuity check modes
 CONTINUITY_CHECK_MODES = ("continuous","discrete")
 
+# Fraction of the design space that must be covered
+COVERAGE_FRACTION = 0.9
+
 
 
 class InstancedDesign(Design):
@@ -112,7 +115,7 @@ class InstancedDesign(Design):
         
         # Instance number
         assert isinstance(instance, int), "Instance must be an integer."
-        assert instance >= 0, "Instance must be a non-negative integer."
+        assert instance >= -2, "Instance must be a non-negative integer or 0,-1 and -2."
 
         # Store the instance number 
         self._instance = instance
@@ -121,26 +124,53 @@ class InstancedDesign(Design):
         # Set the ranges for the MMCs based on the instance number
         # -------------------------------------------------------
 
-        # Instantiate a number generator by using the instance number as a seed
-        rng = np.random.default_rng(self._instance)
+        # NOTE: This is making use of the cases
 
-        # Get a random number between 0 and 0.2
-        # to set the lower bound of the MMCs
-        rand_lb = rng.uniform(0, 0.2, size=(4,))
+        if self._instance > 0:
 
-        # Set the upper bound of the MMCs
-        rand_ub = rand_lb + 0.8
+            # Instantiate a number generator by using the instance number as a seed
+            rng = np.random.default_rng(self._instance)
 
-        # Generate a random number for the angle
-        rand_angle = rng.uniform(-np.pi, 2*np.pi)/np.pi
+            # Get a random number between 0 and (1-FRACTION_OF_COVERAGE)
+            # to set the lower bound of the MMCs
+            rand_lb = rng.uniform(0, 1 - COVERAGE_FRACTION, size=(4,))
 
-         # Generate a range of values for the MMCs
-        self._range_MMCs:np.ndarray = np.array([[rand_lb[0], rand_ub[0]],  # pos_X
-                                                [rand_lb[1], rand_ub[1]],  # pos_Y
-                                                [0 + rand_angle, 1 + rand_angle], # angle
-                                                [rand_lb[2], rand_ub[2]],  # length
-                                                [rand_lb[3], rand_ub[3]]]) # thickness
-    
+            # Set the upper bound of the MMCs
+            rand_ub = rand_lb + COVERAGE_FRACTION
+
+            # Generate a random number for the angle
+            rand_angle = rng.uniform(-np.pi, 2*np.pi)/np.pi
+
+            # Generate a range of values for the MMCs
+            self._range_MMCs:np.ndarray = np.array([[rand_lb[0], rand_ub[0]],  # pos_X
+                                                    [rand_lb[1], rand_ub[1]],  # pos_Y
+                                                    [0 + rand_angle, 1 + rand_angle], # angle
+                                                    [rand_lb[2], rand_ub[2]],  # length
+                                                    [rand_lb[3], rand_ub[3]]]) # thickness
+        
+        elif self._instance == 0:
+            # Recover the original problem without restrictions
+            self._range_MMCs = np.array([[0, 1],  # pos_X
+                                          [0, 1],  # pos_Y
+                                            [0, np.pi],  # angle
+                                            [0, 1],  # length
+                                            [0, 1]])  # thickness
+        
+        elif self._instance == -2:
+            # Set the lower bound of range of variation
+            self._range_MMCs = np.array([[0, COVERAGE_FRACTION],  # pos_X
+                                          [0, COVERAGE_FRACTION],  # pos_Y
+                                          [0, np.pi],  # angle
+                                          [0, COVERAGE_FRACTION],  # length
+                                          [0, COVERAGE_FRACTION]])  # thickness
+        
+        elif self._instance == -1:
+            # Set the upper bound of range of variation
+            self._range_MMCs = np.array([[1-COVERAGE_FRACTION, 1],  # pos_X
+                                          [1-COVERAGE_FRACTION, 1],  # pos_Y
+                                          [0, np.pi],  # angle
+                                          [1-COVERAGE_FRACTION, 1],  # length
+                                          [1-COVERAGE_FRACTION, 1]])  # thickness
 
     def modify_mutable_properties_from_array(self,new_properties_array:np.ndarray,
                                              scaled:bool,repair_level:int=2)->None:
@@ -224,16 +254,31 @@ class InstancedDesign(Design):
             curMMC:MMC = self.list_of_MMC[jj]
 
             # Change the values
-            curMMC.change_pos_X_from_scaled_value(self.range_MMCs[0,0] + 0.8*samp_array_manip[ii],self._pos_X_norm)
+            # NOTE: The values are scaled, so we need to add the lower bound of the range
 
-            curMMC.change_pos_Y_from_scaled_value(self.range_MMCs[1,0] + 0.8*samp_array_manip[ii+1],self._pos_Y_norm)
-            curMMC.change_angle_from_scaled_value(self.range_MMCs[2,0] + samp_array_manip[ii+2],self._angle_norm)
-            curMMC.change_length_from_scaled_value(self.range_MMCs[3,0] + 0.8*samp_array_manip[ii+3],self._length_norm)
-            curMMC.change_thickness_from_scaled_value(self.range_MMCs[4,0] + 0.8*samp_array_manip[ii+4],self._thickness_norm)
-            
-            if repair_level ==1 or repair_level == 2:
-                curMMC.repair_MMC(self.__nelx,self.__nely,repair_level=repair_level,
-                                  min_thickness=min_thickness,tol=tol)
+            if self.instance !=0:
+                curMMC.change_pos_X_from_scaled_value(self.range_MMCs[0,0] + COVERAGE_FRACTION*samp_array_manip[ii],self._pos_X_norm)
+
+                curMMC.change_pos_Y_from_scaled_value(self.range_MMCs[1,0] + COVERAGE_FRACTION*samp_array_manip[ii+1],self._pos_Y_norm)
+                curMMC.change_angle_from_scaled_value(self.range_MMCs[2,0] + samp_array_manip[ii+2],self._angle_norm)
+                curMMC.change_length_from_scaled_value(self.range_MMCs[3,0] + COVERAGE_FRACTION*samp_array_manip[ii+3],self._length_norm)
+                curMMC.change_thickness_from_scaled_value(self.range_MMCs[4,0] + COVERAGE_FRACTION*samp_array_manip[ii+4],self._thickness_norm)
+                
+                if repair_level ==1 or repair_level == 2:
+                    curMMC.repair_MMC(self.__nelx,self.__nely,repair_level=repair_level,
+                                    min_thickness=min_thickness,tol=tol)
+            else:
+                # Implement the standard one
+                curMMC.change_pos_X_from_scaled_value(samp_array_manip[ii],self._pos_X_norm)
+
+                curMMC.change_pos_Y_from_scaled_value(samp_array_manip[ii+1],self._pos_Y_norm)
+                curMMC.change_angle_from_scaled_value(samp_array_manip[ii+2],self._angle_norm)
+                curMMC.change_length_from_scaled_value(samp_array_manip[ii+3],self._length_norm)
+                curMMC.change_thickness_from_scaled_value(samp_array_manip[ii+4],self._thickness_norm)
+
+                if repair_level ==1 or repair_level == 2:
+                    curMMC.repair_MMC(self.__nelx,self.__nely,repair_level=repair_level,
+                                    min_thickness=min_thickness,tol=tol)
                 
     
     def __change_values_of_MMCs_from_array(self, samp_array:np.ndarray, repair_level:int=2, 
@@ -302,3 +347,4 @@ class InstancedDesign(Design):
         :return: The range of MMCs as a numpy array.
         """
         return self._range_MMCs
+    

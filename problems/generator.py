@@ -121,15 +121,15 @@ def _set_cantilever_beam_problem(dimension:int,
     
     # Generate a random generation by using the instance
     import numpy as np
-    rng = np.random.default_rng(instance)
+    #rng = np.random.default_rng(instance)
 
     
     bound_ = 0.05*0.25
     # Get a uniform random number between the bounds
-    if instance == 0:
-        random_number = 1.0
-    else:
-        random_number = 1 + rng.uniform(-0.05, 0.05)
+    # if instance == 0:
+    #     random_number = 1.0
+    # else:
+    #     random_number = 1 + rng.uniform(-0.05, 0.05)
     
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
@@ -209,16 +209,16 @@ def _set_short_beam_problem(dimension:int,
     
     # Generate a random generation by using the instance
     import numpy as np
-    rng = np.random.default_rng(instance)
+    #rng = np.random.default_rng(instance)
 
     
     bound_ = 0.05*0.25/30
 
     # Get a uniform random number between the bounds
-    if instance == 0:
-        random_number = 1.0
-    else:
-        random_number = 1 + rng.uniform(-0.05, 0.05)
+    # if instance == 0:
+    #     random_number = 1.0
+    # else:
+    #     random_number = 1 + rng.uniform(-0.05, 0.05)
     
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
@@ -303,16 +303,16 @@ def _set_mbb_problem(dimension:int,
     
     # Generate a random generation by using the instance
     import numpy as np
-    rng = np.random.default_rng(instance)
+    #rng = np.random.default_rng(instance)
 
     
     bound_ = 0.05*0.25/10
 
     # Get a uniform random number between the bounds
-    if instance == 0:
-        random_number = 1.0
-    else:
-        random_number = 1 + rng.uniform(-0.05, 0.05)
+    # if instance == 0:
+    #     random_number = 1.0
+    # else:
+    #     random_number = 1 + rng.uniform(-0.05, 0.05)
     
     # Get the number of MMC given the dimension
     num_mmc:int = dimension // 5
@@ -395,16 +395,16 @@ def _set_michell_truss_problem(dimension:int,
 
     # Generate a random generation by using the instance
     import numpy as np
-    rng = np.random.default_rng(instance)
+    #rng = np.random.default_rng(instance)
 
     
     bound_ = 0.05*0.25
 
     # Get a uniform random number between the bounds
-    if instance == 0:
-        random_number = 1.0
-    else:
-        random_number = 1 + rng.uniform(-0.05, 0.05)
+    # if instance == 0:
+    #     random_number = 1.0
+    # else:
+    #     random_number = 1 + rng.uniform(-0.05, 0.05)
 
     # Invert the material properties
     material_properties = DEFAULT_MATERIAL_PROPERTIES.copy()

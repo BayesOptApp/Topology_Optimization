@@ -677,3 +677,40 @@ class Design_IOH_Wrapper_Instanced(InstancedDesign,ioh.problem.RealSingleObjecti
     @plot_topology.setter
     def plot_topology(self,new_value:bool)->None:
         self._plot_topology = bool(new_value)
+
+
+        
+    # NOTE: This is a rewriting of the print (or __str__) method to have information about the range of variation
+    #       in the physical space
+
+    def __str__(self) -> str:
+        """
+        Returns a string representation of the design instance.
+        """
+
+        # Get the auxiliary name
+        whole_name = self.meta_data.name
+
+        # Extract the auxiliary name after the last "_"
+        aux_name = whole_name.split(self.problem_name)[-1].removeprefix("_")
+
+        base_string:str = f"IID[{self._instance}] for problem ({aux_name}) generates the following physical ranges:\n"
+
+
+        # Start a loop for all the loaded MMCs
+        for idx, _ in enumerate(self.list_of_MMC):
+            base_string += f"BEAM {idx+1}: X_0=[{self._range_MMCs[0][0]*self._pos_X_norm},{self._range_MMCs[0][1]*self._pos_X_norm}], \t"
+            base_string += f"Y_0=[{self._range_MMCs[1][0]*self._pos_Y_norm},{self._range_MMCs[1][1]*self._pos_Y_norm}], \t"
+            base_string += f"Theta=[{self._range_MMCs[2][0]},{self._range_MMCs[2][1]}], \t"
+            base_string += f"L=[{self._range_MMCs[3][0]*self._length_norm},{self._range_MMCs[3][1]*self._length_norm}], \t"
+            base_string += f"T=[{self._range_MMCs[4][0]*self._thickness_norm},{self._range_MMCs[4][1]*self._thickness_norm}] \n"
+
+
+        return base_string
+
+    def write_ranges_to_file(self, file_path: str) -> None:
+        """
+        Writes the physical ranges of the design to a file.
+        """
+        with open(file_path, 'w') as f:
+            f.write(self.__str__())
