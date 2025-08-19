@@ -977,8 +977,8 @@ class Mesh:
                                 self._bc_types)
         
         # Apply vertical load on middle right node
-        self.__F[NUMBER_OF_NODAL_DOF*self.__mesh_grid.grid_point_number_X*
-               math.ceil((self.__mesh_grid.grid_point_number_Y)/2)-1,0] = -0.1
+        #self.__F[NUMBER_OF_NODAL_DOF*self.__mesh_grid.grid_point_number_X*
+        #       math.ceil((self.__mesh_grid.grid_point_number_Y)/2)-1,0] = -0.1
 
 
     def compute_displacements(self)->Tuple[np.ndarray,float,float]:

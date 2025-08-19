@@ -235,7 +235,7 @@ def _set_short_beam_problem(dimension:int,
 
     # Add Neumann boundary condition at the right edge
     neumann_BC_right = PointNeumannBC(location=(1.0,0.0),
-                                      force_vector=(0.0, -0.25/60))
+                                      force_vector=(0.0, -0.25/5))
     
     boundary_conditions.add(neumann_BC_right)
 
@@ -257,8 +257,8 @@ def _set_short_beam_problem(dimension:int,
         run_= run_number,
         boundary_conditions_list= boundary_conditions,
         problem_aux_name = "short_beam",
-        Emin=1e-3,
-        standard_weight=6500.0,
+        Emin=1e-7,
+        standard_weight=5000.0,
     )
 
     # Modify the penalties of the problem
@@ -306,7 +306,7 @@ def _set_mbb_problem(dimension:int,
     #rng = np.random.default_rng(instance)
 
     
-    bound_ = 0.05*0.25/10
+    #bound_ = 0.05*0.25/10
 
     # Get a uniform random number between the bounds
     # if instance == 0:
@@ -359,7 +359,7 @@ def _set_mbb_problem(dimension:int,
         run_= run_number,
         boundary_conditions_list= boundary_conditions,
         problem_aux_name = "mbb",
-        Emin=5e-4,
+        Emin=5e-8,
         standard_weight=3000.0,
     )
 
