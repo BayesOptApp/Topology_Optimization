@@ -608,8 +608,6 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         # Generate the mesh
         mesh:pyvista.PolyData = pyvista.PolyData(verts,faces)
 
-        if rotate_bool:
-                mesh.rotate_z(rotate_angle, inplace=True)
 
         # Repair mesh
         #mesh:pyvista.PolyData = mesh.clean()
@@ -621,6 +619,9 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         else:
                 rotate_bool = plot_modifier_dict.get("rotate",False)
                 rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
+        
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
 
         # Add the data to the mesh
         mesh.cell_data["V1"] = V1_e[mat_ind].ravel()
@@ -740,4 +741,382 @@ def plot_LP_Parameters_pyvista(cost:float,N_static:np.ndarray,element_map:np.nda
         
         # Close the thread of the figure
         p.close()
+
+
+def plot_LP_Parameters_pyvista_2(N_static:np.ndarray,
+                                 element_map:np.ndarray,
+                                 mat_ind:np.ndarray,
+                                 V1_e:np.ndarray, 
+                                 V3_e:np.ndarray,
+                                 plot_elements:bool = True,
+                                 linewidth:float=DEFAULT_PLOT_LINEWIDTH_ELEMENT_PLOTS,
+                                 plot_modifier_dict:dict = None,
+                                **kwargs)->pyvista.Plotter:
+        
+        r'''
+        Visualise the Lamination parameters
+        This function is used to plot the Lamination parameters V1 and V3 in a pyvista window.
+
+        Args
+        ------------------------
+        - N_static: The deformed field of the beam
+        - element_map: Array with the node maps of each quad
+        - mat_ind: array of booleans defining which elements represent actual material elements
+        - V1_e: Array with the elemental V1 parameter
+        - V3_e: Array with the elemental V3 parameter
+        - linewidth: input of the desired linewidth to plot the elements
+        - plot_elements: boolean control to show the elements
+        - plot_modifier_dict: dictionary with the plot modifiers, e.g. rotation angle
+
+        Returns:
+        ------------------------
+        p: pyvista.Plotter object with the mesh of the Lamination parameters
+        '''
+
+        # Generate an array with the information of vertices
+        verts:np.ndarray = np.hstack((N_static[:,1].reshape(-1,1),N_static[:,2].reshape(-1,1)))
+        verts:np.ndarray = np.hstack((verts,np.zeros((N_static.shape[0],1))))
+
+        # Squeeze (For Precaution)
+        mat_ind = np.squeeze(mat_ind)
+
+        # Get final element Map to plot
+        final_elem_map:np.ndarray = element_map[mat_ind,:]
+
+        # Generate an array to point to the Element freedom table
+        faces_1:np.ndarray = np.hstack((4*np.ones((final_elem_map.shape[0],1)),
+                                          final_elem_map[:,1:5]))
+
+        faces = np.ravel(faces_1)
+        faces = faces.astype(int)
+
+        # Generate a new PyVista window (for Linux)
+        #pyvista.start_xvfb()
+
+        # Generate the mesh
+        mesh:pyvista.PolyData = pyvista.PolyData(verts,faces)
+
+
+        # Repair mesh
+        #mesh:pyvista.PolyData = mesh.clean()
+
+        # Extract the dict of the plot modifier
+        if plot_modifier_dict is None:
+                rotate_bool = False
+                rotate_angle = 0.0
+        else:
+                rotate_bool = plot_modifier_dict.get("rotate",False)
+                rotate_angle = plot_modifier_dict.get("rotate_angle",0.0)
+        
+        if rotate_bool:
+                mesh.rotate_z(rotate_angle, inplace=True)
+
+        # Add the data to the mesh
+        mesh.cell_data["V1"] = V1_e[mat_ind].ravel()
+        mesh.cell_data["V3"] = V3_e[mat_ind].ravel()
+
+        #mesh:pyvista.PolyData = mesh.cell_data_to_point_data()
+
+        # Mock Plot
+
+        p = pyvista.Plotter(border = False,
+                            off_screen=True,
+                            shape=(1, 2),
+                            window_size=[8192, 6144]
+                            )
+        
+        p.enable_image_style()
+        
+        p.subplot(0,0)
+
+       
+        sargs1 = dict(title = "V1",
+                        title_font_size=72,
+                        label_font_size=56,
+                        n_labels=5,
+                        color= "black",
+                        #fmt="%.4f",
+                        font_family="arial",
+                        position_x = 0.20,
+                        position_y = 0.75,
+                        height = 0.05,
+                        width = 0.6,
+                        vertical = False
+                        )
+
+
+        
+        p.add_mesh(mesh,copy_mesh=False,scalars="V1",edge_color="black",
+                   color = "green",scalar_bar_args = sargs1,
+                 show_edges=plot_elements, 
+                 interpolate_before_map=True, cmap="jet",
+                 line_width=linewidth, clim = [-1.0,1.0],
+                 log_scale=False)
+        
+
+
+       
+        p.background_color = 'white'
+        #p.camera_position ="xy"
+        p.camera.tight(view="xy", adjust_render_window = True,padding=0.4)
+        #p.add_title('Cost:{0:.4E}'.format(cost), font='arial', color='k', font_size=22)
+        #p.show_axes()
+        #p.show_bounds(color="black",show_zaxis=False,font_size=20)
+
+        # get the bounds of the first subplot 
+
+
+        p.subplot(0,1)
+
+
+        sargs2 = dict(title = "V3",
+                        title_font_size=72,
+                        label_font_size=56,
+                        n_labels=5,
+                        color= "black",
+                        #fmt="%.4f",
+                        font_family="arial",
+                        position_x = 0.20,
+                        position_y = 0.75,
+                        width = 0.6,
+                        height = 0.05,
+                        vertical = False
+                        )
+
+
+        p.add_mesh(mesh,copy_mesh=True,scalars="V3",color="black",edge_color="black",
+                 show_edges=plot_elements, scalar_bar_args = sargs2,
+                 interpolate_before_map=True, cmap="jet",
+                 line_width=linewidth, clim = [-1.0,1.0],
+                 log_scale=False)
+        
+      
+
+        p.background_color = 'white'
+        #p.add_title('Cost:{0:.4E}'.format(cost), font='arial', color='k', font_size=22)
+
+        p.camera.tight(view="xy", adjust_render_window = True,padding=0.4)
+        
+        # Save the figure
+        # directory_path:str = os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY,
+        #                                   "Run_{0}".format(run_))
+        # filename:str = "iter{0}_LP_dist_{1}_{2}.{3}".format(iterr,
+        # sample,
+        # cost,
+        # image_file_format)
+
+        #fullname:str = os.path.join(directory_path,filename)
+
+   
+        # try:
+        #         p.screenshot(filename=fullname,transparent_background=False)
+        # except FileNotFoundError:
+        #         # Check the folder od Figures Exist
+
+        #         if not os.path.exists(os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY)):
+        #                 # Generate the folder
+        #                 os.mkdir(os.path.join(os.getcwd(),
+        #                                   DEFAULT_FIGURES_STORAGE_DIRECTORY))
+                        
+        #         if not os.path.exists(directory_path):
+        #                 # Generate the folder
+        #                 os.mkdir(directory_path)
+                
+        #         # Try again
+        #         p.screenshot(filename=fullname,transparent_background=False)
+        
+        # Close the thread of the figure
+        #p.close()
+        return p
+
+
+import numpy as np
+import pyvista as pv
+
+def plot_fiber_angle_quivers(N_static: np.ndarray,
+                              element_map: np.ndarray,
+                              mat_ind: np.ndarray,
+                              theta_l: np.ndarray,
+                              theta_r: np.ndarray,
+                              scale: float = 1.0,
+                              plot_modifier_dict: dict = None,
+                              **kwargs) -> pv.Plotter:
+    """
+    Plot left and right fiber angle vectors (quiver-style) using PyVista.
+
+    Args:
+    - N_static: Nodal coordinates (Nx3), typically with columns [x, y, z] (but only y, z used here)
+    - element_map: Element connectivity (Ex5), assuming format [element_id, n1, n2, n3, n4]
+    - mat_ind: Boolean mask for material elements (E,)
+    - theta_l: Left fiber angles per element (E,)
+    - theta_r: Right fiber angles per element (E,)
+    - scale: Scaling factor for arrows
+    - plot_modifier_dict: Optional dict like {"rotate": True, "rotate_angle": 90.0}
+
+    Returns:
+    - PyVista Plotter object
+    """
+
+    # Extract coordinates in Y-Z plane and pad X = 0
+    verts = np.column_stack((N_static[:, 1], N_static[:, 2], np.zeros(N_static.shape[0])))
+
+    # Filter elements
+    mat_ind = np.squeeze(mat_ind)
+    element_map = element_map[mat_ind, :]
+    theta_l = theta_l[mat_ind]
+    theta_r = theta_r[mat_ind]
+
+    centroids = []
+    directions_l = []
+    directions_r = []
+
+    for elem, angle_l, angle_r in zip(element_map, theta_l, theta_r):
+        # Get node indices for the quad
+        node_ids = elem[1:5]
+        coords = verts[node_ids]
+
+        # Compute centroid
+        centroid = coords.mean(axis=0)
+
+        # Convert angles (degrees) to unit vectors in X-Y plane
+        #angle_l_rad = np.deg2rad(angle_l)
+        #angle_r_rad = np.deg2rad(angle_r)
+
+        vec_l = np.array([np.cos(angle_l)[0], np.sin(angle_l)[0],0.0])  # in X-Y plane
+        vec_r = np.array([np.cos(angle_r)[0], np.sin(angle_r)[0],0.0])
+
+        centroids.append(centroid)
+        directions_l.append(vec_l * scale)
+        directions_r.append(vec_r * scale)
+
+    centroids = np.array(centroids)
+    directions_l = np.array(directions_l)
+    directions_r = np.array(directions_r)
+
+    # Create pyvista plotter
+    p = pyvista.Plotter(border = False,
+                            off_screen=True,
+                            shape=(1, 2),
+                            window_size=[8192, 6144]
+                            )
+    p.enable_image_style()
+
+     # Cylinder glyph geometry
+    cylinder = pv.Cylinder(center=(0, 0, 0), direction=(1, 0, 0), radius=0.12, height=1.0, resolution=12)
+
+    # Apply rotation if requested
+    if plot_modifier_dict and plot_modifier_dict.get("rotate", False):
+        angle = plot_modifier_dict.get("rotate_angle", 0.0)
+        centroids = pv.PolyData(centroids)
+        centroids.rotate_z(angle, inplace=True)
+        directions_l = pv.PolyData(directions_l)
+        directions_l.rotate_z(angle, inplace=True)
+        directions_r = pv.PolyData(directions_r)
+        directions_r.rotate_z(angle, inplace=True)
+        centroids = centroids.points
+        directions_l = directions_l.points
+        directions_r = directions_r.points
+    
+    # Left fiber glyphs
+    pd_l = pv.PolyData(centroids)
+    pd_l["vectors"] = directions_l
+    glyphs_l = pd_l.glyph(orient="vectors", scale=False, factor=1.0, geom=cylinder)
+
+    # Right fiber glyphs
+    pd_r = pv.PolyData(centroids)
+    pd_r["vectors"] = directions_r
+    glyphs_r = pd_r.glyph(orient="vectors", scale=False, factor=1.0, geom=cylinder)
+
+    # Plot θ_l vectors
+    p.subplot(0, 0)
+    p.add_mesh(glyphs_l, color='blue', line_width=2)
+    p.add_text("Left fibre angle ($\\alpha_l$)", font_size=14, color='black')
+    p.camera_position = 'xy'
+    p.background_color = "white"
+
+    # Plot θ_r vectors
+    p.subplot(0, 1)
+    p.add_mesh(glyphs_r, color='red', line_width=2)
+    p.add_text("Right fibre angle ($\\alpha_r$)", font_size=14, color='black')
+    p.camera_position = 'xy'
+    p.background_color = "white"
+
+    return p
+
+
+import matplotlib.pyplot as plt
+
+def plot_fiber_angle_quivers_matplotlib(N_static: np.ndarray,
+                                         element_map: np.ndarray,
+                                         mat_ind: np.ndarray,
+                                         theta_l: np.ndarray,
+                                         theta_r: np.ndarray,
+                                         scale: float = 1.0,
+                                         figsize=(12, 6)) -> None:
+    """
+    Plot left and right fiber angle vectors using matplotlib's quiver (2D) plots.
+
+    Args:
+    - N_static: Node coordinates (Nx3), columns are [x, y, z] (we use y, z)
+    - element_map: Element connectivity (Ex5), with format [elem_id, n1, n2, n3, n4]
+    - mat_ind: Boolean mask (E,)
+    - theta_l, theta_r: Left/right fiber angles in degrees (E,)
+    - scale: Arrow length scaling factor
+    - figsize: Figure size in inches
+    """
+
+    # Extract Y and Z coordinates (X ignored)
+    coords_2d = N_static[:, 1:3]
+
+    # Filter valid elements
+    mat_ind = np.squeeze(mat_ind)
+    element_map = element_map[mat_ind]
+    theta_l = theta_l[mat_ind]
+    theta_r = theta_r[mat_ind]
+
+    centroids = []
+    vecs_l = []
+    vecs_r = []
+
+    for elem, th_l, th_r in zip(element_map, theta_l, theta_r):
+        node_ids = elem[1:5]
+        pts = coords_2d[node_ids]
+        centroid = pts.mean(axis=0)
+
+        angle_l = float(th_l)
+        angle_r = float(th_r)
+
+        v_l = np.array([np.cos(angle_l), np.sin(angle_l)]) 
+        v_r = np.array([np.cos(angle_r), np.sin(angle_r)]) 
+
+        centroids.append(centroid)
+        vecs_l.append(v_l)
+        vecs_r.append(v_r)
+
+    centroids = np.array(centroids)
+    vecs_l = np.array(vecs_l)
+    vecs_r = np.array(vecs_r)
+
+    fig, axes = plt.subplots(1, 2, figsize=figsize)
+    titles = [r"Left fiber angle $\alpha_l$", r"Right fiber angle $\alpha_r$"]
+    vectors = [vecs_l, vecs_r]
+
+    for ax, title, vecs in zip(axes, titles, vectors):
+        ax.quiver(centroids[:, 0], centroids[:, 1],   # Y and Z positions
+                  vecs[:, 0], vecs[:, 1],
+                  angles='xy', scale_units='xy', scale=scale,
+                  color='tab:blue', width=0.003)
+
+        ax.set_aspect('equal')
+        ax.set_title(title, fontsize=14)
+        ax.set_xlabel("Y")
+        ax.set_ylabel("Z")
+        ax.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
+
        
