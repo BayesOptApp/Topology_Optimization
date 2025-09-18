@@ -129,7 +129,7 @@ class InstancedDesign(Design):
         if self._instance > 0:
 
             # Instantiate a number generator by using the instance number as a seed
-            rng = np.random.default_rng(self._instance)
+            rng = np.random.default_rng(seed=self._instance)
 
             # Get a random number between 0 and (1-FRACTION_OF_COVERAGE)
             # to set the lower bound of the MMCs
