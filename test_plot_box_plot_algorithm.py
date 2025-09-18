@@ -236,7 +236,7 @@ fig.update_layout(
     xaxis=dict(tickfont=dict(size=17)),
 )
 
-fig.show()
+
 
 
 df_subset_2 = mixed_data_2[['algorithm_name'] + x_columns].copy()
@@ -264,6 +264,19 @@ fig2.update_layout(
     xaxis=dict(tickfont=dict(size=17)),
 )
 
+def keep_only(fig, keep_name="TuRBO-1"):
+    fig.for_each_trace(
+        lambda tr: tr.update(visible=True) if tr.name == keep_name else tr.update(visible="legendonly")
+    )
+    return fig
+
+keep_only(fig, "TuRBO-1")
+keep_only(fig2, "TuRBO-1")
+
+fig.write_image("box_concurrent_TuRBO-1.pdf")
+fig2.write_image("box_sequential_TuRBO-1.pdf")
+
+fig.show()
 fig2.show()
 
 # # Formatting

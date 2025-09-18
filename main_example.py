@@ -26,8 +26,8 @@ from Algorithms.turbo_1_wrapper import Turbo_1_Wrapper
 
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 ## Global Variables
-RANDOM_SEED:int = 7383
-RUN_E:int =  5147
+RANDOM_SEED:int = 7387
+RUN_E:int =  5154
 ## ++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -62,10 +62,10 @@ logger = ioh.logger.Analyzer(
 
 # Get the problem 
 ioh_prob = get_problem(
-    problem_id=4,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
-    dimension=15,  # Dimension of the problem
+    problem_id=2,  # Problem ID for the structural optimisation problem; set to 1 for the cantilever beam problem
+    dimension=25,  # Dimension of the problem
     run_number=RUN_E,  # Run number for the problem instance
-    plot_stresses=False,  # Set to True if you want to plot the stresses
+    plot_stresses=True,  # Set to True if you want to plot the stresses
     plot_topology=True, # Set to True if you want to plot the topology (black and white display)
     instance=0,
 )
@@ -99,18 +99,18 @@ x0_init[12] = 1/6  # Set initial value for the twelfth variable
 x0_init[13] = 2/3  # Set initial value for the thirteenth variable
 x0_init[14] = 0.25  # Set initial value for the fourteenth variable
 
-# x0_init[15] = 0.65  # Set initial value for the fifteenth variable
-# x0_init[16] = 1/3  # Set initial value for the sixteenth variable
-# x0_init[17] = 2/3  # Set initial value for the seventeenth variable
-# x0_init[18] = 1  # Set initial value for the eighteenth variable
-# x0_init[19] = 0.25  # Set initial value for the nineteenth variable
+x0_init[15] = 0.65  # Set initial value for the fifteenth variable
+x0_init[16] = 1/3  # Set initial value for the sixteenth variable
+x0_init[17] = 2/3  # Set initial value for the seventeenth variable
+x0_init[18] = 1  # Set initial value for the eighteenth variable
+x0_init[19] = 0.25  # Set initial value for the nineteenth variable
 
 # Set an instance of the CMA-ES optimizer
 cma_es_optimizer = CMA_ES_Optimizer_Wrapper(
     ioh_problem=ioh_prob,  # The problem instance
     x0=x0_init,  # Initial solution for the CMA-ES algorithm
     random_seed=RANDOM_SEED,  # Random seed for reproducibility
-    sigma0=0.5,  # Initial standard deviation for the CMA-ES algorithm
+    sigma0=0.1,  # Initial standard deviation for the CMA-ES algorithm
 )
 
 
@@ -125,7 +125,7 @@ cma_es_optimizer = CMA_ES_Optimizer_Wrapper(
 # )
 
 #Run the optimization process
-cma_es_optimizer(budget=5000, random_seed=RANDOM_SEED,additional_options = {"CMA_elitist":False})
+cma_es_optimizer(budget=5000, random_seed=RANDOM_SEED,additional_options = {"CMA_elitist":True})
 #rs_optimizer(budget=5000,random_seed=RANDOM_SEED)
 
 #tr_opt(total_budget=5000, random_seed=RANDOM_SEED, n_DoE=3*10)

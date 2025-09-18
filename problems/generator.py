@@ -258,7 +258,7 @@ def _set_short_beam_problem(dimension:int,
         boundary_conditions_list= boundary_conditions,
         problem_aux_name = "short_beam",
         Emin=5e-8,
-        standard_weight=4000.0,
+        standard_weight=1000.0,
     )
 
     # Modify the penalties of the problem
@@ -360,7 +360,7 @@ def _set_mbb_problem(dimension:int,
         boundary_conditions_list= boundary_conditions,
         problem_aux_name = "mbb",
         Emin=5e-8,
-        standard_weight=3000.0,
+        standard_weight=1000.0,
     )
 
     return problem
